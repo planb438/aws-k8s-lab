@@ -119,7 +119,7 @@ bash
 chmod +x copy-join-command.sh
 
 # Run with master and worker public IPs
-./copy-join-command.sh $MASTER_IP $WORKER1_IP $WORKER2_IP
+bash copy-join-command.sh $MASTER_IP $WORKER1_IP $WORKER2_IP
 The script will:
 
 SSH to master → Generate join token
