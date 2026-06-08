@@ -66,6 +66,36 @@ else
     exit 1
 fi
 
+---
+Ubuntu/Debian:
+
+
+curl -L https://github.com/aquasecurity/kube-bench/releases/download/v0.6.2/kube-bench_0.6.2_linux_amd64.deb -o kube-bench_0.6.2_linux_amd64.deb
+
+sudo apt install ./kube-bench_0.6.2_linux_amd64.deb -f
+RHEL:
+
+
+curl -L https://github.com/aquasecurity/kube-bench/releases/download/v0.6.2/kube-bench_0.6.2_linux_amd64.rpm -o kube-bench_0.6.2_linux_amd64.rpm
+
+sudo yum install kube-bench_0.6.2_linux_amd64.rpm -y
+Alternatively, you can manually download and extract the kube-bench binary:
+
+
+curl -L https://github.com/aquasecurity/kube-bench/releases/download/v0.6.2/kube-bench_0.6.2_linux_amd64.tar.gz -o kube-bench_0.6.2_linux_amd64.tar.gz
+
+tar -xvf kube-bench_0.6.2_linux_amd64.tar.gz
+You can then run kube-bench directly:
+
+
+kube-bench
+If you manually downloaded the kube-bench binary (using curl command above), you have to specify the location of configuration directory and file. For example:
+
+
+./kube-bench --config-dir `pwd`/cfg --config `pwd`/cfg/config.yaml 
+
+---
+
 # ============================================
 # 2. Install Trivy (Vulnerability Scanner)
 # ============================================
