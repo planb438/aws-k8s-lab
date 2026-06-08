@@ -118,7 +118,7 @@ bash
 
 
 
-sudo cat /var/log/kubernetes/audit.log | less
+sudo cat /var/log/kubernetes/audit/audit.log | less
 
 
 Search for:
