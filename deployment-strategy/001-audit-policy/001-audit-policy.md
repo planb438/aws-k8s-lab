@@ -5,7 +5,7 @@
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Adari%20Bain-blue)](https://www.linkedin.com/in/adari-bain-298924152/)
 
 
-Documentation for Your Production-Ready Cluster Config
+Documentation for Production-Ready Cluster Config
 Here's the working configuration:
 
 
