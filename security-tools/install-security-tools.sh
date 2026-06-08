@@ -38,14 +38,9 @@ cd $TOOLS_DIR
 # ============================================
 log_step "Installing kube-bench..."
 
-KUBE_BENCH_VERSION="0.8.0"
-KUBE_BENCH_URL="https://github.com/aquasecurity/kube-bench/releases/download/v${KUBE_BENCH_VERSION}/kube-bench_${KUBE_BENCH_VERSION}_${OS}_${ARCH}.tar.gz"
+curl -L https://github.com/aquasecurity/kube-bench/releases/download/v0.6.2/kube-bench_0.6.2_linux_amd64.tar.gz -o kube-bench_0.6.2_linux_amd64.tar.gz
+tar -xvf kube-bench_0.6.2_linux_amd64.tar.gz
 
-log_info "Downloading kube-bench v${KUBE_BENCH_VERSION}..."
-curl -sL $KUBE_BENCH_URL -o kube-bench.tar.gz
-tar -xzf kube-bench.tar.gz
-sudo mv kube-bench /usr/local/bin/
-rm kube-bench.tar.gz
 
 # Verify installation
 if command -v kube-bench &> /dev/null; then
@@ -330,7 +325,7 @@ if kube-bench version &> /dev/null; then
     log_info "✅ kube-bench working correctly"
     echo ""
     echo "Quick test run (first 10 checks only):"
-    kube-bench master --version 1.31 --check 1.1.1,1.1.2
+    kube-bench --config-dir `pwd`/cfg --config `pwd`/cfg/config.yaml
 else
     log_error "❌ kube-bench test failed"
 fi
