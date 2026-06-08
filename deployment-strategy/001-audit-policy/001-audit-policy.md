@@ -29,8 +29,9 @@ Command arguments:
 yaml
 - --audit-policy-file=/etc/kubernetes/audit-policy.yaml
 - --audit-log-path=/var/log/kubernetes/audit/audit.log
-Volume mounts:
 
+Volume mounts:
+---
 yaml
 volumeMounts:
 - mountPath: /etc/kubernetes/audit-policy.yaml
@@ -56,7 +57,80 @@ volumes:
 ---
 
 
-3. Verify Working:
+3. Then restart kube-apiserver (may require updating static pod manifest at /etc/kubernetes/manifests/kube-apiserver.yaml).
+   Let's force a restart of the API server by moving the manifest temporarily:
+
+   sudo systemctl restart kubelet or:
+
+bash
+# Move manifest out
+sudo mv /etc/kubernetes/manifests/kube-apiserver.yaml /tmp/
+
+# Wait 10 seconds
+sleep 10
+
+# Move it back
+sudo mv /tmp/kube-apiserver.yaml /etc/kubernetes/manifests/
+
+# Wait for API server to start
+sleep 30
+
+# Check status
+sudo crictl ps | grep apiserver
+kubectl get pods -n kube-system | grep apiserver
+
+---
+
+Trigger Suspicious Events
+For example:
+
+
+
+kubectl auth can-i create clusterroles --as system:anonymous
+kubectl get secrets --all-namespaces
+
+
+Or apply a risky YAML like:
+yaml
+
+
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: privileged
+  namespace: dev
+spec:
+  containers:
+  - name: shell
+    image: busybox
+    command: ["sleep", "3600"]
+    securityContext:
+      privileged: true
+
+
+--
+Analyze Logs
+-
+View audit logs on the control plane node:
+bash
+
+
+
+sudo cat /var/log/kubernetes/audit.log | less
+
+
+Search for:
+• create events for pods, secrets
+
+• userAgent fields
+
+• as or impersonatedUser
+
+
+---
+
+4. Verify Working:
 bash
 # Check audit logs are being written
 sudo tail -f /var/log/kubernetes/audit/audit.log
