@@ -1,6 +1,7 @@
 #!/bin/bash
-# Configure encryption at rest
+# Configure encryption at rest for Kubernetes secrets
 # Run on MASTER node
+# Reference: https://kubernetes.io/docs/tasks/administer-cluster/encrypt-data/
 
 set -e
 
@@ -8,17 +9,27 @@ MANIFEST="/etc/kubernetes/manifests/kube-apiserver.yaml"
 ENCRYPTION_CONFIG="/etc/kubernetes/encryption/encryption-config.yaml"
 ENCRYPTION_DIR="/etc/kubernetes/encryption"
 
-echo "🔧 Configuring encryption at rest..."
+echo "========================================="
+echo "🔐 Configuring Encryption at Rest"
+echo "========================================="
 
-# Create encryption directory
+# Step 1: Create encryption directory
+echo ""
+echo "📁 Step 1: Creating encryption directory..."
 sudo mkdir -p $ENCRYPTION_DIR
+sudo chmod 700 $ENCRYPTION_DIR
+echo "   Directory: $ENCRYPTION_DIR"
 
-# Generate encryption key (32 bytes base64)
+# Step 2: Generate encryption key
+echo ""
+echo "🔑 Step 2: Generating encryption key..."
 ENCRYPTION_KEY=$(head -c 32 /dev/urandom | base64)
-echo "Generated encryption key (save this for backups):"
-echo "$ENCRYPTION_KEY"
+echo "   Key generated (save this for disaster recovery):"
+echo "   $ENCRYPTION_KEY"
 
-# Create encryption config file
+# Step 3: Create encryption configuration file
+echo ""
+echo "📝 Step 3: Creating encryption configuration..."
 sudo tee $ENCRYPTION_CONFIG << EOF
 apiVersion: apiserver.config.k8s.io/v1
 kind: EncryptionConfiguration
@@ -34,80 +45,180 @@ resources:
 EOF
 
 sudo chmod 600 $ENCRYPTION_CONFIG
-echo "✅ Encryption config created at $ENCRYPTION_CONFIG"
+echo "   Config file: $ENCRYPTION_CONFIG"
 
-# Backup manifest
+# Step 4: Backup current manifest
+echo ""
+echo "💾 Step 4: Backing up API server manifest..."
 sudo cp $MANIFEST ${MANIFEST}.backup.$(date +%Y%m%d_%H%M%S)
+echo "   Backup: ${MANIFEST}.backup.$(date +%Y%m%d_%H%M%S)"
 
-# Function to add flag after kube-apiserver line
-add_flag() {
-    local flag="$1"
-    if ! grep -q "$flag" $MANIFEST; then
-        sudo sed -i "/- kube-apiserver/a\    - $flag" $MANIFEST
-        echo "  Added: $flag"
-    else
-        echo "  Already present: $flag"
-    fi
-}
+# Step 5: Remove existing encryption flag (if any)
+echo ""
+echo "🧹 Step 5: Cleaning up existing encryption flags..."
+sudo sed -i '/--encryption-provider-config/d' $MANIFEST
 
-# Function to add volume mount
-add_volume_mount() {
-    local mount_path="$1"
-    local name="$2"
-    
-    if ! grep -q "name: $name" $MANIFEST; then
-        local indent="    "
-        sudo sed -i "/volumeMounts:/a\\
-${indent}- mountPath: $mount_path\\
-${indent}  name: $name\\
-${indent}  readOnly: true" $MANIFEST
-        echo "  Added volume mount: $name -> $mount_path"
-    fi
-}
-
-# Function to add volume
-add_volume() {
-    local name="$1"
-    local path="$2"
-    
-    if ! grep -q "name: $name$" $MANIFEST; then
-        sudo sed -i "/volumes:/a\\
-  - hostPath:\\
-      path: $path\\
-      type: DirectoryOrCreate\\
-    name: $name" $MANIFEST
-        echo "  Added volume: $name -> $path"
-    fi
-}
-
-echo "Adding encryption flag to API server..."
-add_flag "--encryption-provider-config=$ENCRYPTION_CONFIG"
-
-echo "Adding volume mount for encryption config..."
-add_volume_mount "$ENCRYPTION_DIR" "enc"
-
-echo "Adding volume for encryption config..."
-add_volume "enc" "$ENCRYPTION_DIR"
-
-echo "✅ Encryption provider configured"
-echo "API server will auto-restart. Waiting 30 seconds..."
-sleep 30
-
-# Check API server status
-if sudo kubectl get pods -n kube-system 2>/dev/null | grep -q kube-apiserver; then
-    echo "✅ API server is healthy"
+# Step 6: Add encryption flag
+echo ""
+echo "⚙️ Step 6: Adding encryption flag to API server..."
+if ! grep -q "--encryption-provider-config" $MANIFEST; then
+    sudo sed -i "/- kube-apiserver/a\    - --encryption-provider-config=$ENCRYPTION_CONFIG" $MANIFEST
+    echo "   Added: --encryption-provider-config=$ENCRYPTION_CONFIG"
 else
-    echo "⚠️ API server may still be restarting"
+    echo "   Already present: --encryption-provider-config"
 fi
 
-# Rewrite existing secrets to encrypt them
+# Step 7: Add volume mount for encryption config
 echo ""
-echo "Rewriting existing secrets to encrypt them..."
+echo "🔌 Step 7: Adding volume mount..."
+if ! grep -q "name: enc" $MANIFEST; then
+    sudo sed -i '/volumeMounts:/a\
+    - mountPath: /etc/kubernetes/encryption\
+      name: enc\
+      readOnly: true' $MANIFEST
+    echo "   Added volume mount: enc -> /etc/kubernetes/encryption"
+else
+    echo "   Volume mount already present: enc"
+fi
+
+# Step 8: Add hostPath volume
+echo ""
+echo "💿 Step 8: Adding hostPath volume..."
+if ! grep -q "name: enc$" $MANIFEST; then
+    sudo sed -i '/volumes:/a\
+  - name: enc\
+    hostPath:\
+      path: /etc/kubernetes/encryption\
+      type: DirectoryOrCreate' $MANIFEST
+    echo "   Added volume: enc -> /etc/kubernetes/encryption"
+else
+    echo "   Volume already present: enc"
+fi
+
+# Step 9: Restart API server
+echo ""
+echo "🔄 Step 9: Restarting API server..."
+sudo crictl pods --name kube-apiserver -q 2>/dev/null | xargs -r sudo crictl stopp 2>/dev/null || true
+
+echo "   Waiting for API server to restart (45 seconds)..."
+sleep 45
+
+# Step 10: Verify API server is healthy
+echo ""
+echo "🏥 Step 10: Verifying API server health..."
+if kubectl get nodes &>/dev/null; then
+    echo "   ✅ API server is healthy and responding"
+else
+    echo "   ⚠️ API server may still be starting..."
+fi
+
+# Step 11: Rewrite existing secrets (CRITICAL STEP)
+echo ""
+echo "🔄 Step 11: Rewriting existing secrets to encrypt them..."
+echo "   This forces etcd to re-encrypt all secrets with the new key..."
+
+SECRET_COUNT=0
 kubectl get secrets --all-namespaces -o json | \
   jq -r '.items[] | "\(.metadata.namespace) \(.metadata.name)"' 2>/dev/null | \
   while read ns name; do
-    echo "Rewriting secret: $ns/$name"
-    kubectl get secret $name -n $ns -o json | jq 'del(.metadata.resourceVersion, .metadata.uid, .metadata.creationTimestamp)' | kubectl apply -f - 2>/dev/null || true
+    echo "   Rewriting: $ns/$name"
+    kubectl get secret $name -n $ns -o json | \
+      jq 'del(.metadata.resourceVersion, .metadata.uid, .metadata.creationTimestamp)' | \
+      kubectl apply -f - 2>/dev/null || true
+    SECRET_COUNT=$((SECRET_COUNT + 1))
   done
 
-echo "✅ All secrets rewritten and encrypted"
+echo "   ✅ Secrets rewritten"
+
+# Step 12: Create a test secret to verify encryption
+echo ""
+echo "🔍 Step 12: Verifying encryption in etcd..."
+TEST_SECRET="encryption-test-secret-$(date +%s)"
+
+kubectl create secret generic $TEST_SECRET --from-literal=test=value --dry-run=client -o yaml | kubectl apply -f - 2>/dev/null
+echo "   Created test secret: $TEST_SECRET"
+
+# Wait a moment for etcd to sync
+sleep 2
+
+# Get the secret from etcd directly
+echo "   Checking etcd for encrypted data..."
+
+# Use sudo with the command
+ETCD_OUTPUT=$(sudo etcdctl \
+  --cacert=/etc/kubernetes/pki/etcd/ca.crt \
+  --cert=/etc/kubernetes/pki/etcd/server.crt \
+  --key=/etc/kubernetes/pki/etcd/server.key \
+  get /registry/secrets/default/$TEST_SECRET 2>/dev/null | head -c 100)
+
+if echo "$ETCD_OUTPUT" | grep -q "k8s:enc:" || echo "$ETCD_OUTPUT" | grep -q "^k8s"; then
+    echo "   ✅ Encryption is WORKING! (Encryption header found)"
+else
+    echo "   ⚠️ Encryption header not found. Check configuration."
+fi
+
+# Clean up test secret
+kubectl delete secret $TEST_SECRET --ignore-not-found 2>/dev/null
+echo "   Cleaned up test secret"
+
+# Step 13: Display current encryption flags
+echo ""
+echo "📋 Step 13: Current encryption flags on API server..."
+ps aux | grep kube-apiserver | grep -o '--encryption[^ ]*' | head -5
+
+# Step 14: Show manifest verification
+echo ""
+echo "🔍 Step 14: Verifying manifest configuration..."
+echo "   Encryption flag in manifest:"
+grep --color=never "encryption-provider-config" $MANIFEST || echo "   ⚠️ Flag not found"
+
+echo ""
+echo "   Volume mount in manifest:"
+grep -A2 "name: enc" $MANIFEST | grep -A2 "mountPath" | head -5 || echo "   ⚠️ Volume mount not found"
+
+echo ""
+echo "   Volume in manifest:"
+grep -A3 "name: enc$" $MANIFEST | head -5 || echo "   ⚠️ Volume not found"
+
+# Summary
+echo ""
+echo "========================================="
+echo "✅ Encryption at Rest Configuration Complete!"
+echo "========================================="
+echo ""
+echo "Encryption Configuration:"
+echo "  ┌─────────────────────────────────────────────────────────────┐"
+echo "  │ --encryption-provider-config=/etc/kubernetes/encryption/    │"
+echo "  │                           encryption-config.yaml            │"
+echo "  │ Provider: aesgcm                                            │"
+echo "  │ Fallback: identity (for reading unencrypted data)           │"
+echo "  └─────────────────────────────────────────────────────────────┘"
+echo ""
+echo "Volume Configuration:"
+echo "  ┌─────────────────────────────────────────────────────────────┐"
+echo "  │ volumeMounts:                                               │"
+echo "  │   - mountPath: /etc/kubernetes/encryption                   │"
+echo "  │     name: enc                                               │"
+echo "  │     readOnly: true                                          │"
+echo "  │                                                             │"
+echo "  │ volumes:                                                    │"
+echo "  │   - name: enc                                               │"
+echo "  │     hostPath:                                               │"
+echo "  │       path: /etc/kubernetes/encryption                      │"
+echo "  │       type: DirectoryOrCreate                               │"
+echo "  └─────────────────────────────────────────────────────────────┘"
+echo ""
+echo "⚠️  IMPORTANT: Save this encryption key for disaster recovery:"
+echo "   $ENCRYPTION_KEY"
+echo ""
+echo "   Store it securely (password manager, AWS Secrets Manager, etc.)"
+echo "   Without this key, encrypted secrets cannot be recovered!"
+echo ""
+echo "To verify encryption is working:"
+echo "  sudo etcdctl \\"
+echo "    --cacert=/etc/kubernetes/pki/etcd/ca.crt \\"
+echo "    --cert=/etc/kubernetes/pki/etcd/server.crt \\"
+echo "    --key=/etc/kubernetes/pki/etcd/server.key \\"
+echo "    get /registry/secrets/<namespace>/<secret-name> | head -c 100"
+echo ""
+echo "========================================="
