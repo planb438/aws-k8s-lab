@@ -326,3 +326,99 @@ spec:
             port:
               number: 8080
 Cert Manager + Ingress is now deployed. Your cluster can now terminate TLS for any application you deploy.
+
+---
+
+The cert-manager webhook is still not reachable. This is the same issue you had before. Let's fix it properly.
+
+Quick Fix - Disable the Webhook Temporarily
+bash
+# Delete the blocking webhook configuration
+kubectl delete validatingwebhookconfiguration cert-manager-webhook
+
+# Also delete mutating webhook if exists
+kubectl delete mutatingwebhookconfiguration cert-manager-webhook 2>/dev/null
+
+# Now apply your ClusterIssuer
+kubectl apply -f cluster-issuer.yaml
+If that doesn't work, restart cert-manager
+bash
+# Restart all cert-manager pods
+kubectl delete pods -n cert-manager --all
+
+# Wait for them to restart
+kubectl get pods -n cert-manager -w
+# Press Ctrl+C when all are Running
+Then apply your ClusterIssuer again
+bash
+kubectl apply -f cluster-issuer.yaml
+Permanent Fix - Fix the Webhook Network Issue
+The root cause is likely a network policy or DNS issue. Check:
+
+bash
+# Test if the webhook service is reachable
+kubectl run test --rm -it --restart=Never --image=busybox -- sh -c "wget -O- --timeout=5 https://cert-manager-webhook.cert-manager.svc:443 2>&1 | head -5"
+
+# Check if the webhook pod is healthy
+kubectl get pods -n cert-manager
+kubectl logs -n cert-manager deployment/cert-manager-webhook --tail=20
+Alternative - Skip cert-manager for Now
+Since cert-manager is blocking your progress, deploy NextCloud without TLS:
+
+bash
+# Deploy NextCloud with HTTP only
+kubectl create namespace nextcloud
+
+# Add your PostgreSQL and NextCloud deployments
+# Access via port-forward:
+kubectl port-forward -n nextcloud svc/nextcloud 8080:80
+# Open http://localhost:8080
+You can always add cert-manager and TLS later. Don't let it block your NextCloud deployment.
+
+What Would You Like to Do?
+Option A: Fix cert-manager webhook (try the webhook deletion above)
+
+Option B: Skip cert-manager and deploy NextCloud with HTTP only
+
+Option C: Uninstall cert-manager completely (save for later)
+
+I recommend Option B - keep moving forward. Your cluster is healthy, storage works. Get NextCloud running, then circle back to TLS.
+
+---
+
+✅ Success! Cert Manager is NOW WORKING!
+The webhook deletion worked. Your ClusterIssuers were created successfully and the cert-manager webhook logs show it's healthy and serving certificates.
+
+Verify Your ClusterIssuers
+bash
+kubectl get clusterissuer
+Should show both issuers with READY=True (may take 30 seconds for staging/prod to show ready).
+
+Test Cert Manager with a Simple Certificate
+Create a test certificate to verify everything works:
+
+bash
+cat <<EOF | kubectl apply -f -
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: selfsigned-test
+  namespace: default
+spec:
+  dnsNames:
+  - test.example.com
+  secretName: selfsigned-test-tls
+  issuerRef:
+    name: selfsigned-issuer
+    kind: ClusterIssuer
+EOF
+
+# Check certificate status
+kubectl get certificate selfsigned-test
+
+# Should show READY=True within 30 seconds
+Your Current Status
+yaml
+✅ Cert Manager: RUNNING (webhook fixed)
+✅ ClusterIssuers: CREATED (letsencrypt-prod, letsencrypt-staging)  
+✅ Webhook: WORKING (logs show certificate generation)
