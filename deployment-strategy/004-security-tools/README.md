@@ -417,6 +417,9 @@ If you just want kube-bench quickly:
 bash
 # Install kube-bench only
 curl -sL https://github.com/aquasecurity/kube-bench/releases/download/v0.8.0/kube-bench_0.8.0_linux_amd64.tar.gz | tar -xz && sudo mv kube-bench /usr/local/bin/
+
+sudo find / -iname kube-bench
+
 Integration with Your Cluster
 After installing, run these checks on your cluster:
 
@@ -438,3 +441,7 @@ Grype	Vulnerability scan	CI/CD pipeline
 Cosign	Image signing	Build time
 Kubescape	Additional CIS checks	Weekly
 This gives you the complete CKS security toolchain!
+
+---
+
+
