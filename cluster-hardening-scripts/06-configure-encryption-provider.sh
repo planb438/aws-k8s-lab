@@ -15,7 +15,8 @@ sudo mkdir -p $ENCRYPTION_DIR
 
 # Generate encryption key (32 bytes base64)
 ENCRYPTION_KEY=$(head -c 32 /dev/urandom | base64)
-echo "Generated encryption key: $ENCRYPTION_KEY"
+echo "Generated encryption key (save this for backups):"
+echo "$ENCRYPTION_KEY"
 
 # Create encryption config file
 sudo tee $ENCRYPTION_CONFIG << EOF
@@ -38,38 +39,75 @@ echo "✅ Encryption config created at $ENCRYPTION_CONFIG"
 # Backup manifest
 sudo cp $MANIFEST ${MANIFEST}.backup.$(date +%Y%m%d_%H%M%S)
 
-# Add encryption flag if missing
-if ! grep -q "--encryption-provider-config" $MANIFEST; then
-    echo "Adding encryption flag to API server..."
-    sudo sed -i "/command:/a\    - --encryption-provider-config=$ENCRYPTION_CONFIG" $MANIFEST
-fi
+# Function to add flag after kube-apiserver line
+add_flag() {
+    local flag="$1"
+    if ! grep -q "$flag" $MANIFEST; then
+        sudo sed -i "/- kube-apiserver/a\    - $flag" $MANIFEST
+        echo "  Added: $flag"
+    else
+        echo "  Already present: $flag"
+    fi
+}
 
-# Add volume mount for encryption config
-if ! grep -q "path: $ENCRYPTION_DIR" $MANIFEST; then
-    echo "Adding encryption volume mount..."
-    sudo sed -i "/volumeMounts:/a\    - mountPath: $ENCRYPTION_DIR\n      name: enc\n      readOnly: true" $MANIFEST
-fi
+# Function to add volume mount
+add_volume_mount() {
+    local mount_path="$1"
+    local name="$2"
+    
+    if ! grep -q "name: $name" $MANIFEST; then
+        local indent="    "
+        sudo sed -i "/volumeMounts:/a\\
+${indent}- mountPath: $mount_path\\
+${indent}  name: $name\\
+${indent}  readOnly: true" $MANIFEST
+        echo "  Added volume mount: $name -> $mount_path"
+    fi
+}
 
-# Add volume
-if ! grep -q "name: enc$" $MANIFEST; then
-    echo "Adding encryption volume..."
-    sudo sed -i "/volumes:/a\  - hostPath:\n      path: $ENCRYPTION_DIR\n      type: DirectoryOrCreate\n    name: enc" $MANIFEST
-fi
+# Function to add volume
+add_volume() {
+    local name="$1"
+    local path="$2"
+    
+    if ! grep -q "name: $name$" $MANIFEST; then
+        sudo sed -i "/volumes:/a\\
+  - hostPath:\\
+      path: $path\\
+      type: DirectoryOrCreate\\
+    name: $name" $MANIFEST
+        echo "  Added volume: $name -> $path"
+    fi
+}
+
+echo "Adding encryption flag to API server..."
+add_flag "--encryption-provider-config=$ENCRYPTION_CONFIG"
+
+echo "Adding volume mount for encryption config..."
+add_volume_mount "$ENCRYPTION_DIR" "enc"
+
+echo "Adding volume for encryption config..."
+add_volume "enc" "$ENCRYPTION_DIR"
 
 echo "✅ Encryption provider configured"
-echo "API server will auto-restart..."
-
+echo "API server will auto-restart. Waiting 30 seconds..."
 sleep 30
-kubectl get pods -n kube-system | grep apiserver
 
-# Rewrite existing secrets
+# Check API server status
+if sudo kubectl get pods -n kube-system 2>/dev/null | grep -q kube-apiserver; then
+    echo "✅ API server is healthy"
+else
+    echo "⚠️ API server may still be restarting"
+fi
+
+# Rewrite existing secrets to encrypt them
+echo ""
 echo "Rewriting existing secrets to encrypt them..."
 kubectl get secrets --all-namespaces -o json | \
-  jq '.items[].metadata.name' -r | \
-  while read secret; do
-    ns=$(kubectl get secret $secret --all-namespaces -o json | jq -r '.metadata.namespace')
-    echo "Rewriting secret: $ns/$secret"
-    kubectl get secret $secret -n $ns -o json | jq 'del(.metadata.resourceVersion)' | kubectl apply -f - 2>/dev/null
+  jq -r '.items[] | "\(.metadata.namespace) \(.metadata.name)"' 2>/dev/null | \
+  while read ns name; do
+    echo "Rewriting secret: $ns/$name"
+    kubectl get secret $name -n $ns -o json | jq 'del(.metadata.resourceVersion, .metadata.uid, .metadata.creationTimestamp)' | kubectl apply -f - 2>/dev/null || true
   done
 
-echo "✅ All secrets encrypted"
+echo "✅ All secrets rewritten and encrypted"
