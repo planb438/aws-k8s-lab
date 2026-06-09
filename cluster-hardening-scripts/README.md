@@ -129,3 +129,19 @@ chmod +x 04-fix-protect-kernel-defaults.sh 05-configure-audit-logging.sh
 chmod +x 06-configure-encryption-provider.sh 07-configure-security-flags.sh
 chmod +x 08-apply-all.sh
 This suite gives you complete control over each hardening step with proper error handling and verification at each stage.
+
+---
+
+View Audit Logs Properly
+bash
+# View real-time audit logs (formatted for readability)
+sudo tail -f /var/log/kubernetes/audit/audit.log | jq '.'
+
+# View last 10 audit entries in pretty format
+sudo tail -10 /var/log/kubernetes/audit/audit.log | jq '.'
+
+# Count audit entries by verb
+sudo cat /var/log/kubernetes/audit/audit.log | jq -r '.verb' | sort | uniq -c
+
+# Find failed authentication attempts
+sudo cat /var/log/kubernetes/audit/audit.log | jq 'select(.responseStatus.code >= 400)'
