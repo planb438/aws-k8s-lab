@@ -38,8 +38,8 @@ cd $TOOLS_DIR
 # ============================================
 log_step "Installing kube-bench..."
 
-curl -L https://github.com/aquasecurity/kube-bench/releases/download/v0.6.2/kube-bench_0.6.2_linux_amd64.tar.gz -o kube-bench_0.6.2_linux_amd64.tar.gz
-tar -xvf kube-bench_0.6.2_linux_amd64.tar.gz
+curl -L https://github.com/aquasecurity/kube-bench/releases/download/v0.8.0/kube-bench_0.8.0_linux_amd64.tar.gz -o kube-bench_0.8.0_linux_amd64.tar.gz
+tar -xvf kube-bench_0.8.0_linux_amd64.tar.gz
 
 
 # Verify installation
@@ -152,6 +152,45 @@ if command -v kubescape &> /dev/null; then
 else
     log_warn "⚠️ Kubescape installation failed"
 fi
+
+# ============================================
+# 8. Install Falco (CIS scanner alternative)
+# ============================================
+log_step "Installing Falco..."
+
+helm repo add falcosecurity https://falcosecurity.github.io/charts
+helm repo update
+helm upgrade --install falco falcosecurity/falco \
+  --namespace falco \
+  --create-namespace \
+  --set ebpf.enabled=true \
+  --set falcosidekick.enabled=false
+
+log_info "✅ Falco installed"
+
+# ============================================
+# 9. Install Sealed Secrets (CIS scanner alternative)
+# ============================================
+log_step "Installing Sealed Secrets..."
+
+helm repo add sealed-secrets https://bitnami-labs.github.io/sealed-secrets
+helm repo update
+helm upgrade --install sealed-secrets sealed-secrets/sealed-secrets \
+  --namespace kube-system \
+  --create-namespace
+
+log_info "✅ Sealed Secrets installed"
+
+# ============================================
+# 9. Install kubeseal (CIS scanner alternative)
+# ============================================
+log_step "Installing kubeseal..."
+
+wget https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.25.0/kubeseal-0.25.0-linux-amd64.tar.gz
+tar -xzf kubeseal-0.25.0-linux-amd64.tar.gz
+sudo mv kubeseal /usr/local/bin/
+
+log_info "✅ kubeseal installed"
 
 # ============================================
 # Create validation script

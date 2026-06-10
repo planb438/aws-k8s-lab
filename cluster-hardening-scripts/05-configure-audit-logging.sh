@@ -29,15 +29,16 @@ sudo tee $AUDIT_POLICY << 'EOF'
 apiVersion: audit.k8s.io/v1
 kind: Policy
 rules:
-- level: Metadata
+- level: None
+  users: ["system:kube-proxy", "system:unsecured", "system:kube-scheduler"]
+  verbs: ["watch"]
+  resources
+  - group: "" # core
+    resources: ["endpoints", "services"]
 - level: RequestResponse
   resources:
   - group: ""
-    resources: ["pods"]
-- level: RequestResponse
-  resources:
-  - group: ""
-    resources: ["secrets"]
+    resources: ["secrets", "configmaps"]
 - level: Metadata
   omitStages:
   - RequestReceived

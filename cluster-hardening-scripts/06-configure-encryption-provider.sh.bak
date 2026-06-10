@@ -23,10 +23,8 @@ echo "   Directory: $ENCRYPTION_DIR"
 echo ""
 echo "🔑 Step 2: Generating encryption key..."
 ENCRYPTION_KEY=$(head -c 32 /dev/urandom | base64)
-echo "   Key generated and saved to: /etc/kubernetes/encryption/encryption-key.txt"
-echo "$ENCRYPTION_KEY" | sudo tee /etc/kubernetes/encryption/encryption-key.txt > /dev/null
-sudo chmod 600 /etc/kubernetes/encryption/encryption-key.txt
-echo "   To retrieve: sudo cat /etc/kubernetes/encryption/encryption-key.txt"
+echo "   Key generated:"
+echo "   $ENCRYPTION_KEY"
 
 # Step 3: Create encryption configuration file
 echo ""
