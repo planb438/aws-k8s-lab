@@ -20,6 +20,7 @@ echo "📁 Step 1: Creating audit log directory..."
 sudo mkdir -p $AUDIT_LOG_DIR
 sudo chmod 755 $AUDIT_LOG_DIR
 sudo chown root:root $AUDIT_LOG_DIR
+echo "   Directory: $AUDIT_LOG_DIR"
 
 # Step 2: Create audit policy file
 echo ""
@@ -49,11 +50,19 @@ echo "   Policy file: $AUDIT_POLICY"
 echo ""
 echo "💾 Step 3: Backing up API server manifest..."
 sudo cp $MANIFEST ${MANIFEST}.backup.$(date +%Y%m%d_%H%M%S)
+echo "   Backup: ${MANIFEST}.backup.$(date +%Y%m%d_%H%M%S)"
 
-# Step 4: Remove existing audit flags
+# Step 4: Remove existing audit flags and volumes (clean up)
 echo ""
-echo "🧹 Step 4: Cleaning up existing audit flags..."
+echo "🧹 Step 4: Cleaning up existing audit configuration..."
 sudo sed -i '/--audit-/d' $MANIFEST
+sudo sed -i '/name: audit$/d' $MANIFEST
+sudo sed -i '/name: audit-log$/d' $MANIFEST
+# Remove the hostPath lines associated with audit volumes
+sudo sed -i '/path: \/etc\/kubernetes\/audit-policy.yaml/d' $MANIFEST
+sudo sed -i '/path: \/var\/log\/kubernetes\/audit/d' $MANIFEST
+sudo sed -i '/type: FileOrCreate/d' $MANIFEST
+sudo sed -i '/type: DirectoryOrCreate/d' $MANIFEST
 
 # Step 5: Add audit flags AFTER kube-apiserver line
 echo ""
@@ -88,28 +97,28 @@ if ! grep -q "name: audit-log" $MANIFEST; then
     echo "   Added volume mount: audit-log"
 fi
 
-# Step 8: Add hostPath volume for audit policy
+# Step 8: Add hostPath volume for audit policy (CRITICAL FIX)
 echo ""
 echo "💿 Step 8: Adding hostPath volume for audit policy..."
-if ! grep -q "name: audit$" $MANIFEST; then
+if ! grep -q "path: /etc/kubernetes/audit-policy.yaml" $MANIFEST; then
     sudo sed -i '/volumes:/a\
   - name: audit\
     hostPath:\
       path: /etc/kubernetes/audit-policy.yaml\
       type: FileOrCreate' $MANIFEST
-    echo "   Added volume: audit"
+    echo "   Added volume: audit -> /etc/kubernetes/audit-policy.yaml"
 fi
 
-# Step 9: Add hostPath volume for audit log
+# Step 9: Add hostPath volume for audit log (CRITICAL FIX)
 echo ""
 echo "💿 Step 9: Adding hostPath volume for audit log..."
-if ! grep -q "name: audit-log$" $MANIFEST; then
+if ! grep -q "path: /var/log/kubernetes/audit" $MANIFEST; then
     sudo sed -i '/volumes:/a\
   - name: audit-log\
     hostPath:\
       path: /var/log/kubernetes/audit/\
       type: DirectoryOrCreate' $MANIFEST
-    echo "   Added volume: audit-log"
+    echo "   Added volume: audit-log -> /var/log/kubernetes/audit/"
 fi
 
 # Step 10: Restart API server
@@ -151,15 +160,15 @@ else
     echo "   ⚠️ Audit log file not yet created"
 fi
 
-# Step 14: Verify both volumes exist
+# Step 14: Verify volumes exist in manifest
 echo ""
-echo "🔍 Step 14: Verifying manifest configuration..."
+echo "🔍 Step 14: Verifying volumes in manifest..."
 echo ""
 echo "   Volume mounts:"
 grep -A1 "name: audit" $MANIFEST | head -6
 echo ""
-echo "   Volumes:"
-grep -A3 "name: audit" $MANIFEST | head -12
+echo "   Volumes (hostPath):"
+grep -B1 -A2 "audit" $MANIFEST | grep -E "name:|path:|type:" | head -12
 
 # Summary
 echo ""
@@ -173,6 +182,10 @@ echo "  --audit-log-path=/var/log/kubernetes/audit/audit.log"
 echo "  --audit-log-maxage=30"
 echo "  --audit-log-maxbackup=10"
 echo "  --audit-log-maxsize=100"
+echo ""
+echo "Volumes Configured:"
+echo "  - name: audit (FileOrCreate) -> /etc/kubernetes/audit-policy.yaml"
+echo "  - name: audit-log (DirectoryOrCreate) -> /var/log/kubernetes/audit/"
 echo ""
 echo "To monitor audit logs:"
 echo "  sudo tail -f $AUDIT_LOG_FILE | jq '.'"
