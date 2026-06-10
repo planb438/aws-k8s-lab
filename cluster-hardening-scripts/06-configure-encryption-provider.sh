@@ -1,7 +1,6 @@
 #!/bin/bash
 # Configure encryption at rest for Kubernetes secrets
 # Run on MASTER node
-# Reference: https://kubernetes.io/docs/tasks/administer-cluster/encrypt-data/
 
 set -e
 
@@ -24,7 +23,7 @@ echo "   Directory: $ENCRYPTION_DIR"
 echo ""
 echo "🔑 Step 2: Generating encryption key..."
 ENCRYPTION_KEY=$(head -c 32 /dev/urandom | base64)
-echo "   Key generated (save this for disaster recovery):"
+echo "   Key generated:"
 echo "   $ENCRYPTION_KEY"
 
 # Step 3: Create encryption configuration file
@@ -51,24 +50,19 @@ echo "   Config file: $ENCRYPTION_CONFIG"
 echo ""
 echo "💾 Step 4: Backing up API server manifest..."
 sudo cp $MANIFEST ${MANIFEST}.backup.$(date +%Y%m%d_%H%M%S)
-echo "   Backup: ${MANIFEST}.backup.$(date +%Y%m%d_%H%M%S)"
 
-# Step 5: Remove existing encryption flag (if any)
+# Step 5: Remove existing encryption flag
 echo ""
 echo "🧹 Step 5: Cleaning up existing encryption flags..."
 sudo sed -i '/--encryption-provider-config/d' $MANIFEST
 
-# Step 6: Add encryption flag AFTER kube-apiserver line
+# Step 6: Add encryption flag
 echo ""
-echo "⚙️ Step 6: Adding encryption flag to API server..."
-if ! grep -q "--encryption-provider-config" $MANIFEST; then
-    sudo sed -i "/- kube-apiserver/a\    - --encryption-provider-config=$ENCRYPTION_CONFIG" $MANIFEST
-    echo "   Added: --encryption-provider-config=$ENCRYPTION_CONFIG"
-else
-    echo "   Already present: --encryption-provider-config"
-fi
+echo "⚙️ Step 6: Adding encryption flag..."
+sudo sed -i "/- kube-apiserver/a\    - --encryption-provider-config=$ENCRYPTION_CONFIG" $MANIFEST
+echo "   Added: --encryption-provider-config"
 
-# Step 7: Add volume mount for encryption config
+# Step 7: Add volume mount for encryption
 echo ""
 echo "🔌 Step 7: Adding volume mount..."
 if ! grep -q "name: enc" $MANIFEST; then
@@ -76,29 +70,19 @@ if ! grep -q "name: enc" $MANIFEST; then
     - mountPath: /etc/kubernetes/encryption\
       name: enc\
       readOnly: true' $MANIFEST
-    echo "   Added volume mount: enc -> /etc/kubernetes/encryption"
-else
-    echo "   Volume mount already present: enc"
+    echo "   Added volume mount: enc"
 fi
 
-# Step 8: Add hostPath volume (FIXED - adds complete volume entry)
+# Step 8: Add hostPath volume for encryption (CRITICAL)
 echo ""
 echo "💿 Step 8: Adding hostPath volume..."
-if ! grep -q "name: enc$" $MANIFEST; then
-    # Find the volumes: section and add the enc volume before other volumes
-    # This creates the exact format you needed:
-    # - name: enc
-    #   hostPath:
-    #     path: /etc/kubernetes/encryption
-    #     type: DirectoryOrCreate
+if ! grep -q "path: /etc/kubernetes/encryption" $MANIFEST; then
     sudo sed -i '/volumes:/a\
   - name: enc\
     hostPath:\
       path: /etc/kubernetes/encryption\
       type: DirectoryOrCreate' $MANIFEST
     echo "   Added volume: enc -> /etc/kubernetes/encryption"
-else
-    echo "   Volume already present: enc"
 fi
 
 # Step 9: Restart API server
@@ -113,16 +97,14 @@ sleep 45
 echo ""
 echo "🏥 Step 10: Verifying API server health..."
 if kubectl get nodes &>/dev/null; then
-    echo "   ✅ API server is healthy and responding"
+    echo "   ✅ API server is healthy"
 else
     echo "   ⚠️ API server may still be starting..."
 fi
 
-# Step 11: Rewrite existing secrets (CRITICAL STEP)
+# Step 11: Rewrite existing secrets
 echo ""
-echo "🔄 Step 11: Rewriting existing secrets to encrypt them..."
-echo "   This forces etcd to re-encrypt all secrets with the new key..."
-
+echo "🔄 Step 11: Rewriting existing secrets..."
 kubectl get secrets --all-namespaces -o json | \
   jq -r '.items[] | "\(.metadata.namespace) \(.metadata.name)"' 2>/dev/null | \
   while read ns name; do
@@ -131,16 +113,13 @@ kubectl get secrets --all-namespaces -o json | \
       jq 'del(.metadata.resourceVersion, .metadata.uid, .metadata.creationTimestamp)' | \
       kubectl apply -f - 2>/dev/null || true
   done
-
 echo "   ✅ Secrets rewritten"
 
-# Step 12: Create a test secret to verify encryption
+# Step 12: Test encryption
 echo ""
-echo "🔍 Step 12: Verifying encryption in etcd..."
-TEST_SECRET="encryption-test-secret-$(date +%s)"
-
-kubectl create secret generic $TEST_SECRET --from-literal=test=value --dry-run=client -o yaml | kubectl apply -f - 2>/dev/null
-echo "   Created test secret: $TEST_SECRET"
+echo "🔍 Step 12: Verifying encryption..."
+TEST_SECRET="encryption-test-$(date +%s)"
+kubectl create secret generic $TEST_SECRET --from-literal=test=value 2>/dev/null
 
 sleep 2
 
@@ -148,33 +127,32 @@ ETCD_OUTPUT=$(sudo etcdctl \
   --cacert=/etc/kubernetes/pki/etcd/ca.crt \
   --cert=/etc/kubernetes/pki/etcd/server.crt \
   --key=/etc/kubernetes/pki/etcd/server.key \
-  get /registry/secrets/default/$TEST_SECRET 2>/dev/null | head -c 100)
+  get /registry/secrets/default/$TEST_SECRET 2>/dev/null | head -c 80)
 
 if echo "$ETCD_OUTPUT" | grep -q "k8s:enc:" || echo "$ETCD_OUTPUT" | grep -q "^k8s"; then
-    echo "   ✅ Encryption is WORKING! (Encryption header found)"
+    echo "   ✅ Encryption is WORKING!"
 else
-    echo "   ⚠️ Encryption header not found. Check configuration."
+    echo "   ⚠️ Check encryption configuration"
 fi
 
 kubectl delete secret $TEST_SECRET --ignore-not-found 2>/dev/null
 
-# Step 13: Verify both volume mount and volume exist
+# Step 13: Verify volumes
 echo ""
-echo "🔍 Step 13: Verifying manifest configuration..."
+echo "🔍 Step 13: Verifying volumes..."
+echo "   Volume mount:"
+grep -A2 "name: enc" $MANIFEST | head -4
 echo ""
-echo "   Volume mount (should show enc):"
-grep -A2 "name: enc" $MANIFEST | head -5 || echo "   ⚠️ Volume mount not found"
-echo ""
-echo "   Volume (should show enc with hostPath):"
-grep -A4 "name: enc$" $MANIFEST | head -6 || echo "   ⚠️ Volume not found"
+echo "   Volume:"
+grep -A3 "name: enc$" $MANIFEST | head -5
 
 # Summary
 echo ""
 echo "========================================="
-echo "✅ Encryption at Rest Configuration Complete!"
+echo "✅ Encryption Configuration Complete!"
 echo "========================================="
 echo ""
-echo "⚠️  IMPORTANT: Save this encryption key for disaster recovery:"
+echo "⚠️  SAVE THIS KEY FOR DISASTER RECOVERY:"
 echo "   $ENCRYPTION_KEY"
 echo ""
 echo "========================================="
