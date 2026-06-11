@@ -82,7 +82,7 @@ kubeadm init \
 log_info "Step 8: Configuring kubectl for the current user..."
 mkdir -p /home/ubuntu/.kube
 sudo cp -i /etc/kubernetes/admin.conf /home/ubuntu/.kube/config
-ssudo chown $(id -u):$(id -g) /home/ubuntu/.kube/config
+sudo chown $(id -u):$(id -g) /home/ubuntu/.kube/config
 
 # Also save for root
 cp /etc/kubernetes/admin.conf /root/.kube/config 2>/dev/null || true
