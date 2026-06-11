@@ -32,8 +32,8 @@ rules:
 - level: None
   users: ["system:kube-proxy", "system:unsecured", "system:kube-scheduler"]
   verbs: ["watch"]
-  resources
-  - group: "" # core
+  resources:                       # <-- ADD COLON HERE
+  - group: ""                      # <-- FIX INDENTATION
     resources: ["endpoints", "services"]
 - level: RequestResponse
   resources:
