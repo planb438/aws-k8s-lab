@@ -2,6 +2,9 @@
 # Copy join command from master to workers
 # Runs with sudo on workers
 
+log_info "Waiting for all nodes to be ready..."
+sleep 10
+
 MASTER_IP="$1"
 shift
 WORKER_IPS=("$@")

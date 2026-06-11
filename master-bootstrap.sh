@@ -80,9 +80,9 @@ kubeadm init \
   --service-cidr=10.96.0.0/12
 
 log_info "Step 8: Configuring kubectl for the current user..."
-mkdir -p $HOME/.kube
-sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-sudo chown $(id -u):$(id -g) $HOME/.kube/config
+mkdir -p /home/ubuntu/.kube
+sudo cp -i /etc/kubernetes/admin.conf /home/ubuntu/.kube/config
+ssudo chown $(id -u):$(id -g) /home/ubuntu/.kube/config
 
 # Also save for root
 cp /etc/kubernetes/admin.conf /root/.kube/config 2>/dev/null || true
@@ -99,6 +99,30 @@ kubectl taint nodes --all node-role.kubernetes.io/control-plane- 2>/dev/null || 
 log_info "Step 12: Generating join command for worker nodes..."
 kubeadm token create --print-join-command > /tmp/kubeadm_join_command
 log_info "Join command saved to /tmp/kubeadm_join_command"
+
+# Step 13: Get actual worker node names and label them
+log_info "Step 13: Discovering and labeling worker nodes..."
+
+# Get all nodes that are not the master (control-plane)
+# Master node has label: node-role.kubernetes.io/control-plane=
+WORKER_NODES=$(kubectl get nodes -o name | grep -v control-plane | cut -d'/' -f2)
+
+if [ -z "$WORKER_NODES" ]; then
+    log_warn "No worker nodes found. Waiting longer..."
+    sleep 30
+    WORKER_NODES=$(kubectl get nodes -o name | grep -v control-plane | cut -d'/' -f2)
+fi
+
+# Label each worker node
+for NODE in $WORKER_NODES; do
+    log_info "Labeling worker node: $NODE"
+    kubectl label node $NODE node-role.kubernetes.io/worker= --overwrite 2>/dev/null || \
+        log_warn "Failed to label $NODE (may already have label)"
+done
+
+# Step 14: Verify final state
+log_info "Step 14: Final cluster state..."
+kubectl get nodes -o wide
 
 log_info "=== MASTER NODE BOOTSTRAP COMPLETE ==="
 echo "---------------------------------------------------"
