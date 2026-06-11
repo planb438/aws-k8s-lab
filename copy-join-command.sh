@@ -16,7 +16,7 @@ log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
 log_info "Waiting for all nodes to be ready..."
-sleep 5yes
+sleep 5
 
 MASTER_IP="$1"
 shift
