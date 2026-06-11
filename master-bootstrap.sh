@@ -120,42 +120,6 @@ log_info "Step 12: Generating join command for worker nodes..."
 kubeadm token create --print-join-command > /tmp/kubeadm_join_command
 log_info "Join command saved to /tmp/kubeadm_join_command"
 
-# Step 13: Get actual worker node names and label them
-log_info "Step 13: Discovering and labeling worker nodes..."
-
-# Wait for control-plane label to be applied first
-log_info "Waiting for control-plane label to appear..."
-for i in {1..30}; do
-    if kubectl get nodes -l node-role.kubernetes.io/control-plane= 2>/dev/null | grep -q control-plane; then
-        log_info "Control-plane label detected"
-        break
-    fi
-    sleep 2
-done
-
-# Get control-plane node name
-CONTROL_PLANE_NODE=$(kubectl get nodes -l node-role.kubernetes.io/control-plane= -o name 2>/dev/null | head -1 | cut -d'/' -f2)
-
-log_info "Control-plane node: $CONTROL_PLANE_NODE"
-
-# Get all nodes and label only true workers
-ALL_NODES=$(kubectl get nodes -o name | cut -d'/' -f2)
-
-for NODE in $ALL_NODES; do
-    if [[ "$NODE" == "$CONTROL_PLANE_NODE" ]]; then
-        log_info "Skipping control-plane node: $NODE"
-        # Ensure control-plane does NOT have worker label
-        kubectl label node $NODE node-role.kubernetes.io/worker- 2>/dev/null || true
-    else
-        log_info "Labeling worker node: $NODE"
-        kubectl label node $NODE node-role.kubernetes.io/worker= --overwrite 2>/dev/null
-    fi
-done
-
-# Step 14: Verify final state
-log_info "Step 14: Final cluster state..."
-kubectl get nodes -o wide
-
 log_info "=== MASTER NODE BOOTSTRAP COMPLETE ==="
 echo "---------------------------------------------------"
 echo "To check cluster status:"

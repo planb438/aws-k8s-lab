@@ -68,3 +68,18 @@ echo "All workers processed!"
 echo ""
 echo "Verify cluster status from master:"
 echo "  ssh -i k8s-lab-key.pem ubuntu@$MASTER_IP 'kubectl get nodes'"
+
+# Simple Labeling Addition After all workers have joined, label them
+echo ""
+echo "Labeling worker nodes..."
+
+# Get the control-plane node name
+CONTROL_PLANE=$(ssh -i k8s-lab-key.pem ubuntu@$MASTER_IP "kubectl get nodes -o name | grep control-plane | head -1 | cut -d'/' -f2")
+
+# Label all nodes that are NOT the control-plane as worker
+ssh -i k8s-lab-key.pem ubuntu@$MASTER_IP "kubectl get nodes -o name | grep -v $CONTROL_PLANE | cut -d'/' -f2 | xargs -I {} kubectl label node {} node-role.kubernetes.io/worker= --overwrite"
+
+# Remove worker label from control-plane (if it got labeled)
+ssh -i k8s-lab-key.pem ubuntu@$MASTER_IP "kubectl label node $CONTROL_PLANE node-role.kubernetes.io/worker- 2>/dev/null || true"
+
+echo "Node labels applied:"
