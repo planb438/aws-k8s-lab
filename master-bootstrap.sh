@@ -79,13 +79,33 @@ kubeadm init \
   --kubernetes-version=v1.31.1 \
   --service-cidr=10.96.0.0/12
 
-log_info "Step 8: Configuring kubectl for the current user..."
-mkdir -p /home/ubuntu/.kube
-sudo cp -i /etc/kubernetes/admin.conf /home/ubuntu/.kube/config
-sudo chown $(id -u):$(id -g) /home/ubuntu/.kube/config
+# IMPORTANT: This runs as root via user_data
 
-# Also save for root
-cp /etc/kubernetes/admin.conf /root/.kube/config 2>/dev/null || true
+log_info "Step 8: Configuring kubectl for ubuntu user..."
+
+# Create .kube directory for ubuntu user
+mkdir -p /home/ubuntu/.kube
+
+# Copy admin.conf to ubuntu user's home
+sudo cp -i /etc/kubernetes/admin.conf /home/ubuntu/.kube/config
+
+# Set ownership to ubuntu user
+sudo chown ubuntu:ubuntu /home/ubuntu/.kube/config
+
+# Set proper permissions
+sudo chmod 600 /home/ubuntu/.kube/config
+
+# ALSO configure for root (for any root operations)
+mkdir -p /root/.kube
+cp -i /etc/kubernetes/admin.conf /root/.kube/config
+
+# Set for current session (if running as root)
+export KUBECONFIG=/etc/kubernetes/admin.conf
+
+# Test with ubuntu user
+sudo -u ubuntu kubectl get nodes
+
+log_info "✅ kubectl configured for ubuntu user"
 
 log_info "Step 9: Installing Calico network plugin..."
 kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.31.3/manifests/calico.yaml
