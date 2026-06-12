@@ -142,3 +142,27 @@ kubectl get pods
 # View recent audit events
 sudo cat /var/log/kubernetes/audit/audit.log | jq '.verb, .user.username, .objectRef.resource' | head -20
  cluster is now production-ready with audit logging enabled! The logs show all API requests including successful and forbidden operations, which is essential for security compliance and troubleshooting.
+
+
+---
+
+Production Lessons Learned (Document These)
+markdown
+## Lessons Learned: Encryption & Audit Configuration
+
+### 1. File vs Directory Mounting
+- **Audit**: Mounts a FILE (`audit-policy.yaml`) with `type: FileOrCreate`
+- **Encryption**: Must mount a FILE (`encryption-config.yaml`), NOT a directory
+
+### 2. Backup Files Break Kubelet
+- Kubelet watches ALL `.yaml` files in `/etc/kubernetes/manifests/`
+- Backup files cause duplicate pod creation
+- **Fix**: Store backups in `/etc/kubernetes/backups/manifests/`
+
+### 3. Secret Rewrite Required
+- Existing secrets remain unencrypted until rewritten
+- Command: `kubectl get secrets --all-namespaces -o json | kubectl replace -f -`
+
+### 4. Verification Method
+- Check etcd directly: look for `k8s:enc:` prefix
+- Check API server flags: `ps aux | grep encryption-provider-config`

@@ -50,7 +50,9 @@ echo "   Policy file: $AUDIT_POLICY"
 # Step 3: Backup current manifest
 echo ""
 echo "💾 Step 3: Backing up API server manifest..."
-sudo cp $MANIFEST ${MANIFEST}.backup.$(date +%Y%m%d_%H%M%S)
+BACKUP_DIR="/etc/kubernetes/backups/manifests"
+sudo mkdir -p $BACKUP_DIR
+sudo cp $MANIFEST $BACKUP_DIR/kube-apiserver.yaml.backup.$(date +%Y%m%d_%H%M%S)
 echo "   Backup: ${MANIFEST}.backup.$(date +%Y%m%d_%H%M%S)"
 
 # Step 4: Remove existing audit flags and volumes (clean up)
