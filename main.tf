@@ -222,7 +222,7 @@ resource "aws_instance" "master" {
     tags = { Name = "k8s-master-root" }
   }
   
-  user_data = file("master-bootstrap.sh")
+  user_data = file("/scripts/terraform/master-bootstrap.sh")
   
   tags = { 
     Name        = "k8s-master"
@@ -252,7 +252,7 @@ resource "aws_instance" "workers" {
     tags = { Name = "k8s-worker-${count.index + 1}-root" }
   }
   
-  user_data = file("worker-bootstrap.sh")
+  user_data = file("/scripts/terraform/worker-bootstrap.sh")
   
   tags = { 
     Name        = "k8s-worker-${count.index + 1}"
@@ -266,6 +266,10 @@ resource "aws_instance" "workers" {
     http_put_response_hop_limit = 2
   }
 }
+
+# ============================================
+# Function: Join workers 
+# ============================================
 
 resource "null_resource" "join_workers" {
   depends_on = [aws_instance.master, aws_instance.workers]
@@ -284,8 +288,8 @@ resource "null_resource" "join_workers" {
       echo "Waiting for cluster to initialize..."
       sleep 45
       
-      chmod +x ${path.module}/scripts/copy-join-command.sh
-      ${path.module}/scripts/copy-join-command.sh \
+      chmod +x ${path.module}/scripts/terraform/copy-join-command.sh
+      ${path.module}/scripts/terraform/copy-join-command.sh \
         ${aws_instance.master.public_ip} \
         ${join(" ", aws_instance.workers[*].public_ip)}
     EOT
