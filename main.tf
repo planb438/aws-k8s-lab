@@ -284,10 +284,67 @@ resource "null_resource" "join_workers" {
       echo "Waiting for cluster to initialize..."
       sleep 45
       
-      chmod +x ${path.module}/scripts/terraform/copy-join-command.sh
-      ${path.module}/scripts/terraform/copy-join-command.sh \
+      chmod +x ${path.module}/scripts/copy-join-command.sh
+      ${path.module}/scripts/copy-join-command.sh \
         ${aws_instance.master.public_ip} \
         ${join(" ", aws_instance.workers[*].public_ip)}
+    EOT
+  }
+}
+
+# ============================================
+# Cluster Hardening (Audit & Encryption)
+# ============================================
+
+resource "null_resource" "harden_cluster" {
+  depends_on = [null_resource.join_workers]
+  
+  provisioner "local-exec" {
+    command = <<-EOT
+      #!/bin/bash
+      set -e
+      
+      echo ""
+      echo "========================================="
+      echo "🔐 Running Cluster Hardening Scripts"
+      echo "========================================="
+      
+      # Copy entire hardening scripts directory
+      scp -o StrictHostKeyChecking=no -i ${path.module}/k8s-lab-key.pem \
+        -r ${path.module}/scripts/cluster-hardening-scripts \
+        ubuntu@${aws_instance.master.public_ip}:/home/ubuntu/
+      
+      # 1. Configure Audit Logging
+      echo ""
+      echo "📝 Step 1/2: Configuring Audit Logging..."
+      ssh -o StrictHostKeyChecking=no -i ${path.module}/k8s-lab-key.pem \
+        ubuntu@${aws_instance.master.public_ip} \
+        "sudo bash /home/ubuntu/cluster-hardening-scripts/001-audit-policy/001-configure-audit-logging.sh"
+      
+      echo "⏳ Waiting for API server to restart..."
+      sleep 30
+      
+      # 2. Configure Encryption at Rest
+      echo ""
+      echo "🔒 Step 2/2: Configuring Encryption at Rest..."
+      ssh -o StrictHostKeyChecking=no -i ${path.module}/k8s-lab-key.pem \
+        ubuntu@${aws_instance.master.public_ip} \
+        "sudo bash /home/ubuntu/cluster-hardening-scripts/002-encryption-at-rest/002-configure-encryption-provider.sh"
+      
+      echo "⏳ Waiting for API server to stabilize..."
+      sleep 30
+      
+      # Final verification
+      echo ""
+      echo "🔍 Verification:"
+      ssh -o StrictHostKeyChecking=no -i ${path.module}/k8s-lab-key.pem \
+        ubuntu@${aws_instance.master.public_ip} \
+        "ps aux | grep kube-apiserver | grep -E '(audit|encryption)' | grep -v grep"
+      
+      echo ""
+      echo "========================================="
+      echo "✅ Cluster Hardening Complete!"
+      echo "========================================="
     EOT
   }
 }
