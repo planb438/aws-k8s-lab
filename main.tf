@@ -267,3 +267,27 @@ resource "aws_instance" "workers" {
   }
 }
 
+resource "null_resource" "join_workers" {
+  depends_on = [aws_instance.master, aws_instance.workers]
+  
+  triggers = {
+    master_ip    = aws_instance.master.public_ip
+    worker_ips   = join(",", aws_instance.workers[*].public_ip)
+    worker_count = length(aws_instance.workers)
+  }
+  
+  provisioner "local-exec" {
+    command = <<-EOT
+      #!/bin/bash
+      set -e
+      
+      echo "Waiting for cluster to initialize..."
+      sleep 45
+      
+      chmod +x ${path.module}/scripts/terraform/copy-join-command.sh
+      ${path.module}/scripts/terraform/copy-join-command.sh \
+        ${aws_instance.master.public_ip} \
+        ${join(" ", aws_instance.workers[*].public_ip)}
+    EOT
+  }
+}
