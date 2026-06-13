@@ -222,7 +222,7 @@ resource "aws_instance" "master" {
     tags = { Name = "k8s-master-root" }
   }
   
-  user_data = file("/scripts/terraform/master-bootstrap.sh")
+  user_data = file("scripts/terraform/master-bootstrap.sh")
   
   tags = { 
     Name        = "k8s-master"
@@ -252,7 +252,7 @@ resource "aws_instance" "workers" {
     tags = { Name = "k8s-worker-${count.index + 1}-root" }
   }
   
-  user_data = file("/scripts/terraform/worker-bootstrap.sh")
+  user_data = file("scripts/terraform/worker-bootstrap.sh")
   
   tags = { 
     Name        = "k8s-worker-${count.index + 1}"
