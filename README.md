@@ -5,10 +5,8 @@
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Adari%20Bain-blue)](https://www.linkedin.com/in/adari-bain-298924152/)
 
 
-# aws-k8s-lab
+# AWS Kubernetes Lab - Production Ready Cluster
 
-
-AWS Kubernetes Lab - Production Ready Cluster
 ---
 
 
