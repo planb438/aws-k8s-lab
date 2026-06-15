@@ -84,11 +84,11 @@ text
 ### 🚀 Quick Start
 ### Prerequisites
 bash
-# Install Terraform (v1.0+)
+####  Install Terraform (v1.0+)
 # Configure AWS CLI
 aws configure
 
-# Verify S3 bucket exists for state
+####  Verify S3 bucket exists for state
 aws s3 ls planb-backup-bucket
 Deployment
 bash
@@ -96,17 +96,17 @@ bash
 git clone <your-repo>
 cd aws-k8s-lab
 
-# 2. Customize variables (optional)
+####  2. Customize variables (optional)
 cp terraform.tfvars.example terraform.tfvars
 # Edit instance types, worker count, region
 
-# 3. Initialize Terraform
+####  3. Initialize Terraform
 terraform init
 
-# 4. Review plan
+####  4. Review plan
 terraform plan
 
-# 5. Deploy cluster
+####  5. Deploy cluster
 terraform apply -auto-approve
 
 # Output will show:
@@ -118,16 +118,16 @@ bash
 # SSH to master node
 ssh -i k8s-lab-key.pem ubuntu@<master-public-ip>
 
-# Verify cluster nodes
+####  Verify cluster nodes
 kubectl get nodes -o wide
 
-# Expected output:
+####  Expected output:
 # NAME            STATUS   ROLES           AGE   VERSION
 # ip-10-0-1-xxx   Ready    control-plane   5m    v1.31.1
 # ip-10-0-1-xxx   Ready    <none>          4m    v1.31.1
 # ip-10-0-1-xxx   Ready    <none>          4m    v1.31.1
-🔐 Security Features
-1. Audit Logging
+#### 🔐 Security Features
+#### 1. Audit Logging
 bash
 # Check audit logs
 sudo cat /var/log/kubernetes/audit/audit.log | jq '.'
@@ -136,7 +136,7 @@ sudo cat /var/log/kubernetes/audit/audit.log | jq '.'
 # - Policy: Logs all Metadata level
 # - Rotation: 30 days, 10 backups, 100MB max
 # - Omitted stages: RequestReceived
-2. Encryption at Rest
+#### 2. Encryption at Rest
 bash
 # Verify encryption
 sudo ETCDCTL_API=3 etcdctl \
