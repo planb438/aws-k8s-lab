@@ -221,6 +221,75 @@ spec:
             name: nextcloud
             port:
               number: 8080
+
+---
+markdown
+## Ingress + Cert Manager Installation
+
+Run the automated script:
+
+```bash
+./cluster-hardening-scripts/008-deploying-cert-manager-nginx-ingress/install-ingress-certmanager.sh
+The script will:
+
+Install Nginx Ingress Controller with hostNetwork (bypasses Calico)
+
+Install cert-manager using kubectl manifests (no timeout)
+
+Fix cert-manager webhook (removes blocking configuration)
+
+Create self-signed ClusterIssuer for testing
+
+Deploy a test whoami application
+
+Create a TLS-enabled Ingress
+
+Verify HTTPS is working
+
+Expected output:
+
+text
+Hostname: whoami-xxxxx
+X-Forwarded-Proto: https
+text
+
+### 3. Create a Cleanup Script (Already Have One)
+
+Save this as `cleanup.sh`:
+
+```bash
+#!/bin/bash
+# Clean up for re-testing
+kubectl delete ns ingress-nginx cert-manager --ignore-not-found=true
+kubectl delete clusterissuer --all
+kubectl delete validatingwebhookconfiguration cert-manager-webhook ingress-nginx-admission --ignore-not-found=true
+kubectl delete deployment whoami
+kubectl delete svc whoami
+kubectl delete ingress whoami-selfsigned
+echo "✅ Cleanup complete"
+4. Test the Full Cycle
+bash
+# Clean up
+./cleanup.sh
+
+# Re-run script
+./install-ingress-certmanager.sh
+
+# Should work every time!
+Your Project Status
+Item	Status
+Terraform AWS infrastructure	✅ Complete
+Kubernetes cluster (1 master + 2 workers)	✅ Complete
+Audit logging	✅ Complete
+Encryption at rest (AES-GCM)	✅ Complete
+Ingress Controller	✅ Complete
+Cert Manager	✅ Complete
+TLS certificates	✅ Complete
+Automated installation script	✅ NOW WORKING
+Documentation	✅ Ready
+
+---
+
 #### 📞 Support
 #### Issue	Solution
 #### Helm not found	curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
