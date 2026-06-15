@@ -34,18 +34,37 @@ log_info "✅ Ingress installed"
 # ============================================
 # Step 2: Install Cert-Manager WITHOUT WAIT
 # ============================================
-log_step "Installing Cert Manager (background)..."
+# log_step "Installing Cert Manager (background)..."
 
-helm repo add jetstack https://charts.jetstack.io
-helm repo update
-kubectl create ns cert-manager --dry-run=client -o yaml | kubectl apply -f -
+# helm repo add jetstack https://charts.jetstack.io
+# helm repo update
+# kubectl create ns cert-manager --dry-run=client -o yaml | kubectl apply -f -
 
 # CRITICAL: No --wait flag here!
-helm upgrade --install cert-manager jetstack/cert-manager \
-  --namespace cert-manager \
-  --set installCRDs=true
+# helm upgrade --install cert-manager jetstack/cert-manager \
+#  --namespace cert-manager \
+#  --set installCRDs=true
 
-log_info "Cert Manager installation started"
+# log_info "Cert Manager installation started"
+
+# ============================================
+# Step 2: Install Cert-Manager using MANIFESTS (No Helm)
+# ============================================
+log_step "Installing Cert Manager using manifests (bypassing helm timeout)..."
+
+# Create namespace
+kubectl create namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -
+
+# Install cert-manager CRDs first
+log_info "Installing cert-manager CRDs..."
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.15.3/cert-manager.crds.yaml
+
+# Install cert-manager components
+log_info "Installing cert-manager controller..."
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.15.3/cert-manager.yaml
+
+log_info "Cert Manager installation started (manifest mode)"
+
 
 # ============================================
 # Step 3: Immediate Webhook Fix
