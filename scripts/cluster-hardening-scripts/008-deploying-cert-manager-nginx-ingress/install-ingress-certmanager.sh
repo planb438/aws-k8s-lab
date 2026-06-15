@@ -22,13 +22,12 @@ helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 helm repo update
 kubectl create ns ingress-nginx --dry-run=client -o yaml | kubectl apply -f -
 
+# install Ingress with HostNetwork (bypasses Calico)
 helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
   --namespace ingress-nginx \
-  --set controller.service.type=NodePort \
-  --set controller.service.nodePorts.http=30080 \
-  --set controller.service.nodePorts.https=30443 \
-  --set controller.admissionWebhooks.enabled=false \
-  --wait --timeout 3m
+  --set controller.hostNetwork=true \
+  --set controller.service.type=ClusterIP \
+  --set controller.admissionWebhooks.enabled=false
 
 log_info "✅ Ingress installed"
 
