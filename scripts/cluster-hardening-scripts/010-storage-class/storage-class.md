@@ -5,29 +5,29 @@
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Adari%20Bain-blue)](https://www.linkedin.com/in/adari-bain-298924152/)
 
 
-Since the cluster has no StorageClass defined, we need to set up storage before deploying Nextcloud (or any stateful application). Here's how to configure a local storage provider :
+#### Since the cluster has no StorageClass defined, we need to set up storage before deploying Nextcloud (or any stateful application). Here's #### how to configure a local storage provider :
 
 ---
 
-Option 1: Local Path Provisioner (Simplest for Home Lab)
-This creates PersistentVolumes using disk space on your worker nodes.
+#### Option 1: Local Path Provisioner (Simplest for Home Lab)
+#### This creates PersistentVolumes using disk space on your worker nodes.
 
 
 ---
 
-1. Install Local Path Provisioner:
+#### 1. Install Local Path Provisioner:
 bash
 kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.24/deploy/local-path-storage.yaml
 
 ---
 
-2. Set as Default StorageClass:
+#### 2. Set as Default StorageClass:
 bash
 kubectl patch storageclass local-path -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
 
 ---
 
-3. Verify:
+#### 3. Verify:
 bash
 kubectl get storageclass
 Output should show:
@@ -38,12 +38,12 @@ local-path (default)   rancher.io/local-path   30s
 
 ---
 
-Option 2: NFS Server (If You Want Shared Storage)
+#### Option 2: NFS Server (If You Want Shared Storage)
 Better for multi-node clusters where pods might reschedule.
 
 ---
 
-1. Install NFS Server on a Node:
+#### 1. Install NFS Server on a Node:
 On one of your worker nodes (SSH into it):
 
 bash
@@ -57,7 +57,7 @@ sudo systemctl restart nfs-kernel-server
 
 ---
 
-2. Install NFS Client Provisioner:
+#### 2. Install NFS Client Provisioner:
 bash
 helm repo add nfs-subdir-external-provisioner https://kubernetes-sigs.github.io/nfs-subdir-external-provisioner/
 helm install nfs-provisioner nfs-subdir-external-provisioner/nfs-subdir-external-provisioner \
