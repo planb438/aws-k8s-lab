@@ -6,308 +6,204 @@
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Adari%20Bain-blue)](https://www.linkedin.com/in/adari-bain-298924152/)
 
 
-✅ Deploying Cert Manager + Nginx Ingress (TLS for Everything)
-This is a critical component. Every app in the cluster will need HTTPS, and this gives you automatic Let's Encrypt certificates.
+#### ✅ Deploying Cert Manager + Nginx Ingress (TLS for Everything)
+#### This is a critical component. Every app in the cluster will need HTTPS, and this gives you automatic Let's Encrypt certificates.
 
-Step 1: Deploy Nginx Ingress Controller
+#### Kubernetes Ingress + Cert Manager Automation
+#### 📋 Overview
+#### This automated script deploys a complete Ingress Controller with TLS termination using self-signed certificates on a Kubernetes cluster #### (kubeadm + Calico).
+#### 
+#### What This Script Does
+#### Step	Component	Action
+#### 1	Ingress Controller	Installs Nginx Ingress with hostNetwork (bypasses Calico issues)
+#### 2	Cert Manager	Installs cert-manager WITHOUT --wait (prevents timeout)
+#### 3	Webhook Fix	Deletes blocking webhook, restarts pods (critical for Calico)
+#### 4	ClusterIssuer	Creates self-signed CA issuer for internal testing
+#### 5	Test App	Deploys whoami test application
+#### 6	TLS Ingress	Creates Ingress with HTTPS certificate
+#### 7	Webhook Cleanup	Fixes Ingress admission webhook
+#### 8	Verification	Tests HTTPS connection via port-forward
+#### 🚀 Quick Start
+#### Prerequisites
 bash
-# Add the ingress-nginx helm repo
-helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
-helm repo update
-
-# Create namespace
-kubectl create namespace ingress-nginx
-
-# Install Nginx Ingress Controller
-helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
-  --namespace ingress-nginx \
-  --set controller.publishService.enabled=true \
-  --set controller.replicaCount=2 \
-  --set controller.nodeSelector."kubernetes\.io/os"=linux \
-  --set defaultBackend.nodeSelector."kubernetes\.io/os"=linux
-Verify installation:
-
+####  On your MASTER node, ensure you have:
+#### helm version   # v3.0+
+#### kubectl version  # v1.31+
+#### Run the Script
 bash
-# Check pods are running
-kubectl get pods -n ingress-nginx
+####  Make executable
+#### chmod +x install-ingress-certmanager.sh
 
-# Check service (should get an EXTERNAL-IP)
-kubectl get svc -n ingress-nginx
-
-# Should see:
-# NAME                          TYPE           CLUSTER-IP     EXTERNAL-IP
-# ingress-nginx-controller      LoadBalancer   10.100.xx.xx   <pending-or-ip>
-# ingress-nginx-controller-admission ClusterIP   10.101.xx.xx   <none>
-Note: On EC2, the EXTERNAL-IP may show as <pending> unless you have a LoadBalancer configured. This is fine - we can use NodePort or port-forward for testing.
-
-Step 2: Deploy Cert Manager
+####  Run it
+#### ./install-ingress-certmanager.sh
+#### Expected Output (Success)
 bash
-# Add Jetstack helm repo
-helm repo add jetstack https://charts.jetstack.io
-helm repo update
+#### [STEP] Installing Nginx Ingress Controller...
+#### [INFO] ✅ Ingress installed
 
-# Create namespace
-kubectl create namespace cert-manager
+#### [STEP] Installing Cert Manager (background)...
+#### [INFO] Cert Manager installation started
 
-# Install Cert Manager with CRDs
-helm upgrade --install cert-manager jetstack/cert-manager \
-  --namespace cert-manager \
-  --set installCRDs=true \
-  --set nodeSelector."kubernetes\.io/os"=linux
-Verify installation:
+#### [STEP] Fixing cert-manager webhook...
+#### [INFO] ✅ Cert Manager webhook fixed
 
-bash
-# Check pods are running
-kubectl get pods -n cert-manager
+#### [STEP] Creating self-signed ClusterIssuer...
+#### NAME                READY   AGE
+#### ca-issuer           True    10s
+#### selfsigned-issuer   True    10s
 
-# Should see 3 pods:
-# cert-manager-xxx (controller)
-# cert-manager-cainjector-xxx
-# cert-manager-webhook-xxx
+#### [STEP] Deploying test app...
+#### [INFO] ✅ Test app deployed
 
-# Verify webhook is ready (may take 30 seconds)
-kubectl get validatingwebhookconfigurations | grep cert-manager
-Step 3: Create Let's Encrypt ClusterIssuer
-bash
-# Create ClusterIssuer for Let's Encrypt production
-cat <<EOF | kubectl apply -f -
-apiVersion: cert-manager.io/v1
-kind: ClusterIssuer
-metadata:
-  name: letsencrypt-prod
-spec:
-  acme:
-    # Let's Encrypt production API
-    server: https://acme-v02.api.letsencrypt.org/directory
-    # CHANGE THIS TO YOUR EMAIL!
-    email: admin@your-domain.com
-    privateKeySecretRef:
-      name: letsencrypt-prod-private-key
-    solvers:
-    - http01:
-        ingress:
-          class: nginx
----
-# Optional: Staging issuer for testing (no rate limits)
-apiVersion: cert-manager.io/v1
-kind: ClusterIssuer
-metadata:
-  name: letsencrypt-staging
-spec:
-  acme:
-    server: https://acme-staging-v02.api.letsencrypt.org/directory
-    email: admin@your-domain.com
-    privateKeySecretRef:
-      name: letsencrypt-staging-private-key
-    solvers:
-    - http01:
-        ingress:
-          class: nginx
-EOF
-Update the email address! Edit the ClusterIssuer with your real email:
+#### [STEP] Creating Ingress with TLS...
+#### NAME               READY   SECRET             AGE
+#### whoami-local-tls   True    whoami-local-tls   15s
+
+=========================================
+#### 🔍 TEST: curl with HTTPS
+=========================================
+#### Hostname: whoami-69bd47c6b5-btpth
+#### X-Forwarded-Proto: https
+
+#### ✅ INSTALLATION COMPLETE!
+#### 🧪 Verification Commands
+#### After script completes, verify your setup:
 
 bash
-kubectl edit clusterissuer letsencrypt-prod
-# Change email: admin@your-domain.com to YOUR actual email
-Verify issuers:
-
-bash
+####  1. Check ClusterIssuers
 kubectl get clusterissuer
 
-# Should show:
-# NAME                  READY   AGE
-# letsencrypt-prod      True    10s
-# letsencrypt-staging   True    10s
-Step 4: Test with a Simple App (HTTP → HTTPS)
-Let's deploy a test app to verify TLS works:
+####  2. Check Certificates
+kubectl get certificate -A
 
-bash
-# Deploy a simple test app
-cat <<EOF | kubectl apply -f -
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: whoami
-  namespace: default
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: whoami
-  template:
-    metadata:
-      labels:
-        app: whoami
-    spec:
-      containers:
-      - name: whoami
-        image: traefik/whoami:latest
-        ports:
-        - containerPort: 80
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: whoami
-  namespace: default
-spec:
-  selector:
-    app: whoami
-  ports:
-  - port: 80
-    targetPort: 80
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: whoami
-  namespace: default
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-staging
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-spec:
-  ingressClassName: nginx
-  tls:
-  - hosts:
-    - whoami.your-domain.com  # CHANGE THIS
-    secretName: whoami-tls
-  rules:
-  - host: whoami.your-domain.com  # CHANGE THIS
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: whoami
-            port:
-              number: 80
-EOF
-Note: Since you likely don't have a domain name yet, we'll test differently in Step 5.
+####  3. Check Ingress
+kubectl get ingress
 
-Step 5: Test Without a Domain Name (Self-Signed Certificate)
-If you don't have a domain (typical for homelab), create a self-signed issuer:
-
-bash
-# Create self-signed certificate issuer
-cat <<EOF | kubectl apply -f -
-apiVersion: cert-manager.io/v1
-kind: ClusterIssuer
-metadata:
-  name: selfsigned-issuer
-spec:
-  selfSigned: {}
----
-# Create a CA certificate
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: selfsigned-ca
-  namespace: cert-manager
-spec:
-  isCA: true
-  commonName: selfsigned-ca
-  secretName: selfsigned-ca-secret
-  issuerRef:
-    name: selfsigned-issuer
-    kind: ClusterIssuer
----
-# Create issuer from the CA certificate
-apiVersion: cert-manager.io/v1
-kind: ClusterIssuer
-metadata:
-  name: ca-issuer
-spec:
-  ca:
-    secretName: selfsigned-ca-secret
-EOF
-
-# Wait for certificate to be ready
-kubectl get certificate -n cert-manager
-Test with self-signed certificate:
-
-bash
-# Test ingress with self-signed cert
-cat <<EOF | kubectl apply -f -
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: whoami-selfsigned
-  namespace: default
-  annotations:
-    cert-manager.io/cluster-issuer: ca-issuer
-spec:
-  ingressClassName: nginx
-  tls:
-  - hosts:
-    - whoami.local
-    secretName: whoami-local-tls
-  rules:
-  - host: whoami.local
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: whoami
-            port:
-              number: 80
-EOF
-
-# Test locally (add to /etc/hosts if needed)
+####  4. Test HTTPS (port-forward)
 kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 8443:443 &
+curl -k https://whoami.local:8443 --resolve whoami.local:8443:127.0.0.1
 
-# In another terminal
-curl -k https://whoami.local:8443
-# Should get a response from the whoami service
-Step 6: Verify Everything Works
-bash
-# Check certificate status
-kubectl get certificate --all-namespaces
-
-# Check ingress status
-kubectl get ingress --all-namespaces
-
-# Check cert-manager logs
-kubectl logs -n cert-manager deployment/cert-manager --tail=20
-
-# Check ingress controller logs
+####  5. Check Ingress Controller logs
 kubectl logs -n ingress-nginx deployment/ingress-nginx-controller --tail=20
-Summary of What You've Deployed
-Component	Status	Purpose
-Nginx Ingress Controller	✅ Deployed	Routes external traffic to services
-Cert Manager	✅ Deployed	Manages TLS certificates
-Let's Encrypt ClusterIssuer	✅ Configured	Automatic HTTPS certs
-CA Issuer (self-signed)	✅ Configured	For homelab testing
-What's Next After This
-yaml
-Platform Security Progress:
-  ✅ Encryption at rest (aesgcm)
-  ✅ Cert Manager + Ingress (TLS)
-  
-Remaining Platform Security:
-  ⬜ Prometheus + Grafana (observability)
-  ⬜ Sealed Secrets (secrets management)
-  ⬜ Kyverno (policy enforcement)
+#### 📝 Access Methods
+#### Method 1: Port-Forward (Always Works)
+bash
+kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 8443:443 &
+curl -k https://whoami.local:8443 --resolve whoami.local:8443:127.0.0.1
+#### Method 2: NodePort (Requires AWS Security Group)
+bash
+####  Add this to your AWS security group: TCP 30443 from 0.0.0.0/0
+NODE_PORT=$(kubectl get svc -n ingress-nginx -o jsonpath='{.items[0].spec.ports[?(@.name=="https")].nodePort}')
+curl -k https://$(hostname -I | awk '{print $1}'):$NODE_PORT -H "Host: whoami.local"
+Method 3: HostNetwork Direct (If Ingress is on master node)
+bash
+curl -k https://$(hostname -I | awk '{print $1}') -H "Host: whoami.local"
+#### 🐛 Lessons Learned
+#### 1. Never Use --wait with cert-manager on Calico
+Problem: Cert-manager installation times out because the webhook can't be reached during initial deployment.
 
-Then:
-  ⬜ PostgreSQL (dependency for NextCloud)
-  ⬜ NextCloud deployment
-Quick Commands for Later (NextCloud Ingress)
-When you're ready to deploy NextCloud with TLS:
+Fix:
 
+bash
+####  WRONG - Times out
+helm upgrade --install cert-manager ... --wait
+
+####  CORRECT - Install without wait, then fix webhook
+helm upgrade --install cert-manager ...  # no --wait
+kubectl delete validatingwebhookconfiguration cert-manager-webhook
+kubectl delete pods -n cert-manager --all
+#### 2. Calico Blocks Ingress to Pod Traffic
+Problem: Ingress controller can't reach pods on different nodes (504 errors).
+
+Fix: Use controller.hostNetwork=true to bypass Calico:
+
+bash
+--set controller.hostNetwork=true \
+--set controller.service.type=ClusterIP
+#### 3. Ingress Admission Webhook Causes Timeouts
+Problem: The ingress admission webhook can block ingress creation on fresh clusters.
+
+Fix:
+
+bash
+kubectl delete validatingwebhookconfiguration ingress-nginx-admission
+kubectl delete pods -n ingress-nginx --all
+#### 4. Cert-Manager Webhook Needs Immediate Fix
+Problem: Even after installation, the webhook prevents ClusterIssuer creation.
+
+Fix: Delete webhook and restart pods within 10-20 seconds of installation.
+
+#### 5. Port-Forward Takes Time to Stabilize
+Problem: Running curl immediately after port-forward often times out.
+
+#### Fix: Add sleep 5 after starting port-forward before testing.
+
+#### 📁 File Structure
+text
+#### cluster-hardening-scripts/
+#### └── 008-deploying-cert-manager-nginx-ingress/
+####    ├── install-ingress-certmanager.sh    # Main script
+####     ├── Self-Signed-ClusterIssuer.yaml    # ClusterIssuer definition
+####     ├── Deploy-whoami-Test-App.yaml       # Test app deployment
+####     └── Ingress-with-Self-Signed-Cert.yaml # Ingress definition
+#### 🔧 Troubleshooting
+Issue: Cert-manager pods not starting
+bash
+kubectl get pods -n cert-manager
+kubectl logs -n cert-manager deployment/cert-manager
+Issue: Certificate stuck in "False" state
+bash
+kubectl describe certificate whoami-local-tls
+kubectl describe clusterissuer ca-issuer
+Issue: 504 Gateway Timeout
+bash
+####  Check if Ingress can reach pod
+INGRESS_POD=$(kubectl get pods -n ingress-nginx -o name | head -1)
+kubectl exec -n ingress-nginx $INGRESS_POD -- curl -s http://whoami.default
+Issue: "connection refused" on port 8443
+bash
+####  Kill and restart port-forward
+pkill -f "kubectl port-forward"
+kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 8443:443 &
+sleep 5
+curl -k https://whoami.local:8443 --resolve whoami.local:8443:127.0.0.1
+#### 📊 Validation Checklist
+After running the script, verify each item:
+
+bash
+####  ✅ ClusterIssuers ready
+kubectl get clusterissuer | grep True
+
+####  ✅ Certificate ready
+kubectl get certificate whoami-local-tls | grep True
+
+####  ✅ Ingress created
+kubectl get ingress whoami-selfsigned
+
+####  ✅ whoami pod running
+kubectl get pods -l app=whoami
+
+####  ✅ HTTPS responds
+curl -k --max-time 5 https://whoami.local:8443 --resolve whoami.local:8443:127.0.0.1 | grep -q "Hostname" && echo "✅ HTTPS WORKING"
+#### 🎯 Next Steps
+#### After successful installation:
+#### 
+#### Deploy real applications (NextCloud, WordPress, etc.) using the same Ingress pattern
+#### 
+#### Switch to Let's Encrypt for production domains
+#### 
+#### Add Sealed Secrets for GitOps secret management
+#### 
+#### Deploy Kyverno for policy enforcement
+#### 
+#### Example: NextCloud Ingress with Let's Encrypt
 yaml
-# NextCloud ingress with Let's Encrypt
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: nextcloud
-  namespace: nextcloud
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/proxy-body-size: "10G"
 spec:
   ingressClassName: nginx
   tls:
@@ -325,100 +221,24 @@ spec:
             name: nextcloud
             port:
               number: 8080
-Cert Manager + Ingress is now deployed. Your cluster can now terminate TLS for any application you deploy.
+#### 📞 Support
+#### Issue	Solution
+#### Helm not found	curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+#### kubectl not found	Install via apt install kubectl
+#### Permission denied	chmod +x install-ingress-certmanager.sh
+#### API server not reachable	Wait 60 seconds after cluster creation
+#### 📄 License
+#### MIT License - Use freely for learning and production.
+#### 
+#### 🙏 Acknowledgments
+#### Kubernetes documentation
+#### 
+#### Cert-Manager project
+#### 
+#### Nginx Ingress Controller team
+#### 
+#### All the debugging sessions that led to these fixes
+#### 
+#### Built with ☁️ for production Kubernetes clusters
 
----
 
-The cert-manager webhook is still not reachable. This is the same issue you had before. Let's fix it properly.
-
-Quick Fix - Disable the Webhook Temporarily
-bash
-# Delete the blocking webhook configuration
-kubectl delete validatingwebhookconfiguration cert-manager-webhook
-
-# Also delete mutating webhook if exists
-kubectl delete mutatingwebhookconfiguration cert-manager-webhook 2>/dev/null
-
-# Now apply your ClusterIssuer
-kubectl apply -f cluster-issuer.yaml
-If that doesn't work, restart cert-manager
-bash
-# Restart all cert-manager pods
-kubectl delete pods -n cert-manager --all
-
-# Wait for them to restart
-kubectl get pods -n cert-manager -w
-# Press Ctrl+C when all are Running
-Then apply your ClusterIssuer again
-bash
-kubectl apply -f cluster-issuer.yaml
-Permanent Fix - Fix the Webhook Network Issue
-The root cause is likely a network policy or DNS issue. Check:
-
-bash
-# Test if the webhook service is reachable
-kubectl run test --rm -it --restart=Never --image=busybox -- sh -c "wget -O- --timeout=5 https://cert-manager-webhook.cert-manager.svc:443 2>&1 | head -5"
-
-# Check if the webhook pod is healthy
-kubectl get pods -n cert-manager
-kubectl logs -n cert-manager deployment/cert-manager-webhook --tail=20
-Alternative - Skip cert-manager for Now
-Since cert-manager is blocking your progress, deploy NextCloud without TLS:
-
-bash
-# Deploy NextCloud with HTTP only
-kubectl create namespace nextcloud
-
-# Add your PostgreSQL and NextCloud deployments
-# Access via port-forward:
-kubectl port-forward -n nextcloud svc/nextcloud 8080:80
-# Open http://localhost:8080
-You can always add cert-manager and TLS later. Don't let it block your NextCloud deployment.
-
-What Would You Like to Do?
-Option A: Fix cert-manager webhook (try the webhook deletion above)
-
-Option B: Skip cert-manager and deploy NextCloud with HTTP only
-
-Option C: Uninstall cert-manager completely (save for later)
-
-I recommend Option B - keep moving forward. Your cluster is healthy, storage works. Get NextCloud running, then circle back to TLS.
-
----
-
-✅ Success! Cert Manager is NOW WORKING!
-The webhook deletion worked. Your ClusterIssuers were created successfully and the cert-manager webhook logs show it's healthy and serving certificates.
-
-Verify Your ClusterIssuers
-bash
-kubectl get clusterissuer
-Should show both issuers with READY=True (may take 30 seconds for staging/prod to show ready).
-
-Test Cert Manager with a Simple Certificate
-Create a test certificate to verify everything works:
-
-bash
-cat <<EOF | kubectl apply -f -
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: selfsigned-test
-  namespace: default
-spec:
-  dnsNames:
-  - test.example.com
-  secretName: selfsigned-test-tls
-  issuerRef:
-    name: selfsigned-issuer
-    kind: ClusterIssuer
-EOF
-
-# Check certificate status
-kubectl get certificate selfsigned-test
-
-# Should show READY=True within 30 seconds
-Your Current Status
-yaml
-✅ Cert Manager: RUNNING (webhook fixed)
-✅ ClusterIssuers: CREATED (letsencrypt-prod, letsencrypt-staging)  
-✅ Webhook: WORKING (logs show certificate generation)
