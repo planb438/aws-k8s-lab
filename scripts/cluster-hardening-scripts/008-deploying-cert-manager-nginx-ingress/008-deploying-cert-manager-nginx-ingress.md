@@ -290,6 +290,163 @@ Documentation	✅ Ready
 
 ---
 
+
+Alternative: Simplify - Deploy WordPress Instead
+WordPress is much easier to set up. Let's deploy it:
+
+bash
+# Clean up NextCloud (optional)
+kubectl delete ns nextcloud
+
+# Deploy WordPress
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: wordpress
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pvc
+  namespace: wordpress
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+  namespace: wordpress
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: "rootpass123"
+        - name: MYSQL_DATABASE
+          value: wordpress
+        - name: MYSQL_USER
+          value: wordpress
+        - name: MYSQL_PASSWORD
+          value: "wp123pass"
+        ports:
+        - containerPort: 3306
+        volumeMounts:
+        - name: mysql-storage
+          mountPath: /var/lib/mysql
+      volumes:
+      - name: mysql-storage
+        persistentVolumeClaim:
+          claimName: mysql-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+  namespace: wordpress
+spec:
+  selector:
+    app: mysql
+  ports:
+  - port: 3306
+    targetPort: 3306
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wordpress
+  namespace: wordpress
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wordpress
+  template:
+    metadata:
+      labels:
+        app: wordpress
+    spec:
+      containers:
+      - name: wordpress
+        image: wordpress:latest
+        env:
+        - name: WORDPRESS_DB_HOST
+          value: mysql
+        - name: WORDPRESS_DB_USER
+          value: wordpress
+        - name: WORDPRESS_DB_PASSWORD
+          value: "wp123pass"
+        - name: WORDPRESS_DB_NAME
+          value: wordpress
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wordpress
+  namespace: wordpress
+spec:
+  selector:
+    app: wordpress
+  ports:
+  - port: 80
+    targetPort: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: wordpress
+  namespace: wordpress
+  annotations:
+    cert-manager.io/cluster-issuer: ca-issuer
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - wordpress.local
+    secretName: wordpress-tls
+  rules:
+  - host: wordpress.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: wordpress
+            port:
+              number: 80
+EOF
+
+# Wait for pods
+kubectl wait --for=condition=ready pod -l app=mysql -n wordpress --timeout=120s
+kubectl wait --for=condition=ready pod -l app=wordpress -n wordpress --timeout=120s
+
+# Test
+kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 8443:443 &
+curl -k https://wordpress.local:8443 --resolve wordpress.local:8443:127.0.0.1 | head -20
+WordPress should work immediately since it has simpler DNS requirements.
+
+
+---
+
 #### 📞 Support
 #### Issue	Solution
 #### Helm not found	curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
@@ -309,5 +466,7 @@ Documentation	✅ Ready
 #### All the debugging sessions that led to these fixes
 #### 
 #### Built with ☁️ for production Kubernetes clusters
+
+
 
 
