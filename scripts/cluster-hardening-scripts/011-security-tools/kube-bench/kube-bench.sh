@@ -41,6 +41,7 @@ log_step "Installing kube-bench..."
 curl -L https://github.com/aquasecurity/kube-bench/releases/download/v0.8.0/kube-bench_0.8.0_linux_amd64.tar.gz -o kube-bench_0.8.0_linux_amd64.tar.gz
 tar -xvf kube-bench_0.8.0_linux_amd64.tar.gz
 sudo mv kube-bench /usr/local/bin/
+sudo cp -rf cfg /home/ubuntu/
 
 # Verify installation
 if command -v kube-bench &> /dev/null; then
@@ -68,8 +69,7 @@ echo "========================================="
 # 1. kube-bench CIS checks
 echo ""
 echo "📊 1. Running kube-bench (CIS Benchmarks)..."
-kube-bench master --version 1.31 --json | jq '.Totals' 2>/dev/null || kube-bench master --version 1.31
-
+sudo kube-bench --config-dir `pwd`/cfg --config `pwd`/cfg/config.yaml
 echo ""
 echo "✅ Security check complete!"
 EOFSCRIPT
