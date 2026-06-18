@@ -328,59 +328,59 @@ chmod +x $TOOLS_DIR/scan-images.sh
 # ============================================
 # Create summary
 # ============================================
-echo ""
-echo "========================================="
-log_step "INSTALLATION COMPLETE"
-echo "========================================="
-echo ""
-log_info "Tools installed in: $TOOLS_DIR"
-echo ""
-echo "┌─────────────────────────────────────────────────────────┐"
-echo "│  Available Commands                                     │"
-echo "├─────────────────────────────────────────────────────────┤"
-echo "│  kube-bench          - CIS Benchmark scanner           │"
-echo "│  trivy               - Container vulnerability scanner │"
-echo "│  syft                - SBOM generator                  │"
-echo "│  grype               - Vulnerability scanner for SBOM  │"
-echo "│  cosign              - Image signing tool              │"
-echo "│  kubectl             - Kubernetes CLI                  │"
-echo "│  helm                - Kubernetes package manager      │"
-echo "│  kubescape           - Alternative CIS scanner         │"
-echo "└─────────────────────────────────────────────────────────┘"
-echo ""
-echo "┌─────────────────────────────────────────────────────────┐"
-echo "│  Scripts Available                                      │"
-echo "├─────────────────────────────────────────────────────────┤"
-echo "│  ./run-kube-bench.sh    - Run CIS compliance checks    │"
-echo "│  ./scan-images.sh       - Scan container images        │"
-echo "│  ./run-security-checks.sh - Complete security audit    │"
-echo "└─────────────────────────────────────────────────────────┘"
-echo ""
-log_info "Next steps:"
-echo "  1. Run kube-bench:    ./run-kube-bench.sh"
-echo "  2. Scan images:       ./scan-images.sh"
-echo "  3. Full security audit: ./run-security-checks.sh"
-echo ""
+#### echo ""
+#### echo "========================================="
+#### log_step "INSTALLATION COMPLETE"
+#### echo "========================================="
+#### echo ""
+#### log_info "Tools installed in: $TOOLS_DIR"
+#### echo ""
+#### echo "┌─────────────────────────────────────────────────────────┐"
+#### echo "│  Available Commands                                     │"
+#### echo "├─────────────────────────────────────────────────────────┤"
+#### echo "│  kube-bench          - CIS Benchmark scanner           │"
+#### echo "│  trivy               - Container vulnerability scanner │"
+#### echo "│  syft                - SBOM generator                  │"
+#### echo "│  grype               - Vulnerability scanner for SBOM  │"
+#### echo "│  cosign              - Image signing tool              │"
+#### echo "│  kubectl             - Kubernetes CLI                  │"
+#### echo "│  helm                - Kubernetes package manager      │"
+#### echo "│  kubescape           - Alternative CIS scanner         │"
+#### echo "└─────────────────────────────────────────────────────────┘"
+#### echo ""
+#### echo "┌─────────────────────────────────────────────────────────┐"
+#### echo "│  Scripts Available                                      │"
+#### echo "├─────────────────────────────────────────────────────────┤"
+#### echo "│  ./run-kube-bench.sh    - Run CIS compliance checks    │"
+#### echo "│  ./scan-images.sh       - Scan container images        │"
+#### echo "│  ./run-security-checks.sh - Complete security audit    │"
+#### echo "└─────────────────────────────────────────────────────────┘"
+#### echo ""
+#### log_info "Next steps:"
+#### echo "  1. Run kube-bench:    ./run-kube-bench.sh"
+#### echo "  2. Scan images:       ./scan-images.sh"
+#### echo "  3. Full security audit: ./run-security-checks.sh"
+#### echo ""
 
 # ============================================
 # Test kube-bench
 # ============================================
-log_step "Testing kube-bench installation..."
+#### log_step "Testing kube-bench installation..."
 
-if kube-bench version &> /dev/null; then
-    log_info "✅ kube-bench working correctly"
-    echo ""
-    echo "Quick test run (first 10 checks only):"
-    kube-bench master --version 1.31 --check 1.1.1,1.1.2
-else
-    log_error "❌ kube-bench test failed"
-fi
+#### if kube-bench version &> /dev/null; then
+####     log_info "✅ kube-bench working correctly"
+####     echo ""
+####     echo "Quick test run (first 10 checks only):"
+####     kube-bench master --version 1.31 --check 1.1.1,1.1.2
+#### else
+####     log_error "❌ kube-bench test failed"
+#### fi
 
-echo ""
-log_info "Installation complete! Tools ready for CKS compliance."
-How to Use This Script
-1. Copy the script to your master node
-bash
+#### echo ""
+#### log_info "Installation complete! Tools ready for CKS compliance."
+#### How to Use This Script
+#### 1. Copy the script to your master node
+#### bash
 # On your local machine
 scp -i k8s-lab-key.pem install-security-tools.sh ubuntu@<master-ip>:~
 
@@ -388,59 +388,59 @@ scp -i k8s-lab-key.pem install-security-tools.sh ubuntu@<master-ip>:~
 ssh -i k8s-lab-key.pem ubuntu@<master-ip>
 nano install-security-tools.sh
 # Paste the entire script above
-2. Run the installer
+#### 2. Run the installer
 bash
 # On the master node
-chmod +x install-security-tools.sh
-./install-security-tools.sh
-3. Run CIS benchmark on your cluster
-bash
-cd ~/security-tools
-./run-kube-bench.sh
-Expected Output
-text
-=========================================
-🔐 kube-bench CIS Compliance Check
-=========================================
+#### chmod +x install-security-tools.sh
+#### ./install-security-tools.sh
+#### 3. Run CIS benchmark on your cluster
+#### bash
+#### cd ~/security-tools
+#### ./run-kube-bench.sh
+#### Expected Output
+#### text
+#### =========================================
+#### 🔐 kube-bench CIS Compliance Check
+#### =========================================
+#### 
+#### 📊 Control Plane Checks:
+#### [INFO] 1 Master Node Security Configuration
+#### [PASS] 1.1.1 Ensure that the API server pod specification file permissions are set to 644 or more restrictive (Manual)
+#### [PASS] 1.1.2 Ensure that the API server pod specification file ownership is set to root:root (Manual)
+#### ...
+#### [FAIL] 1.2.7 Ensure that the --authorization-mode argument is not set to AlwaysAllow (Automated)
+#### 
+#### Totals: PASS: 85, FAIL: 3, WARN: 5
+#### Quick One-Liner Install (Alternative)
+#### If you just want kube-bench quickly:
 
-📊 Control Plane Checks:
-[INFO] 1 Master Node Security Configuration
-[PASS] 1.1.1 Ensure that the API server pod specification file permissions are set to 644 or more restrictive (Manual)
-[PASS] 1.1.2 Ensure that the API server pod specification file ownership is set to root:root (Manual)
-...
-[FAIL] 1.2.7 Ensure that the --authorization-mode argument is not set to AlwaysAllow (Automated)
-
-Totals: PASS: 85, FAIL: 3, WARN: 5
-Quick One-Liner Install (Alternative)
-If you just want kube-bench quickly:
-
-bash
+#### bash
 # Install kube-bench only
-curl -sL https://github.com/aquasecurity/kube-bench/releases/download/v0.8.0/kube-bench_0.8.0_linux_amd64.tar.gz | tar -xz && sudo mv kube-bench /usr/local/bin/
+#### curl -sL https://github.com/aquasecurity/kube-bench/releases/download/v0.8.0/kube-bench_0.8.0_linux_amd64.tar.gz | tar -xz && sudo mv kube-bench /usr/local/bin/
 
-sudo find / -iname kube-bench
+#### sudo find / -iname kube-bench
 
-Integration with Your Cluster
-After installing, run these checks on your cluster:
+#### Integration with Your Cluster
+#### After installing, run these checks on your cluster:
 
 bash
 # 1. Baseline CIS check (BEFORE NextCloud)
 kube-bench master --version 1.31
 
 # 2. After hardening (AFTER applying Kyverno policies)
-kube-bench node --version 1.31
+#### kube-bench node --version 1.31
 
 # 3. Generate report for compliance
-kube-bench master --json | jq '.' > cis-report.json
-What This Script Gives You
-Tool	Purpose	When to Run
-kube-bench	CIS Benchmark	Before/after changes
-Trivy	Image CVEs	Before deployment
-Syft	SBOM generation	Build time
-Grype	Vulnerability scan	CI/CD pipeline
-Cosign	Image signing	Build time
-Kubescape	Additional CIS checks	Weekly
-This gives you the complete CKS security toolchain!
+#### kube-bench master --json | jq '.' > cis-report.json
+#### What This Script Gives You
+#### Tool	Purpose	When to Run
+#### kube-bench	CIS Benchmark	Before/after changes
+#### Trivy	Image CVEs	Before deployment
+#### Syft	SBOM generation	Build time
+#### Grype	Vulnerability scan	CI/CD pipeline
+#### Cosign	Image signing	Build time
+#### Kubescape	Additional CIS checks	Weekly
+#### This gives you the complete CKS security toolchain!
 
 ---
 
