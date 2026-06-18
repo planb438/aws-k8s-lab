@@ -64,6 +64,7 @@ echo "========================================="
 # 2. Kubescape (additional CIS scanner)
 echo ""
 echo "📊 2. Running Kubescape..."
+export PATH=$PATH:/home/ubuntu/.kubescape/bin
 kubescape scan framework nsa --verbose
 
 echo ""
