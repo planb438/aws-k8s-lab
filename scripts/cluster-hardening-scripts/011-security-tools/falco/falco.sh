@@ -48,7 +48,7 @@ helm upgrade --install falco falcosecurity/falco \
 
 log_info "✅ Falco installed"
 
- ============================================
+ # ============================================
 # Create validation script
 # ============================================
 log_step "Creating validation script..."
