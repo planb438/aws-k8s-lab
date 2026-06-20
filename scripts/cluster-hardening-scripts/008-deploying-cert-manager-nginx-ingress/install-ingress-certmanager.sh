@@ -224,7 +224,7 @@ kubectl get pods -n ingress-nginx
 log_step "Testing..."
 
 kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 8443:443 &
-sleep 5
+sleep 20
 
 echo ""
 echo "========================================="
