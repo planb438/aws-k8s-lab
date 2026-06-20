@@ -23,19 +23,23 @@
     bash
     kube-bench version
     kube-bench master --version 1.31
+    sudo kube-bench --config-dir `pwd`/cfg --config `pwd`/cfg/config.yaml
 #### Test Commands
     bash
     # Run all master node checks
     sudo kube-bench master --version 1.31
+    sudo kube-bench --config-dir `pwd`/cfg --config `pwd`/cfg/config.yaml
 
 # Run specific check
     sudo kube-bench master --version 1.31 --check 1.1.1
+    sudo kube-bench --config-dir `pwd`/cfg --config `pwd`/cfg/config.yaml
 
 # JSON output for automation
     sudo kube-bench master --version 1.31 --json | jq '.Totals'
 
 # Run node checks (from worker node)
     sudo kube-bench node --version 1.31
+    sudo kube-bench --config-dir `pwd`/cfg --config `pwd`/cfg/config.yaml
 #### Expected Output
     text
     [INFO] 1 Master Node Security Configuration
