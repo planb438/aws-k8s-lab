@@ -145,18 +145,18 @@ echo "   3. Sync app: argocd app sync my-app"
 echo ""
 echo "========================================="
 
-# 1. Restart CoreDNS
+echo "📝 # 1. Restart CoreDNS:"
 kubectl delete pods -n kube-system -l k8s-app=kube-dns
 
-# 2. Wait for CoreDNS to be ready
+echo "📝 # 2. Wait for CoreDNS to be ready:"
 kubectl wait --for=condition=ready pod -l k8s-app=kube-dns -n kube-system --timeout=60s
 
-# 3. Restart Argo CD repo-server
+echo "📝 # 3. Restart Argo CD repo-server:"
 kubectl delete pods -n argocd -l app.kubernetes.io/name=argocd-repo-server
 
-# 4. Wait for restart
+echo "📝 # 4. Wait for restart:"
 sleep 20
 
-# 5. Check if it's working
+echo "📝 # 5. Check if it's working:"
 kubectl get pods -n argocd
 
