@@ -90,37 +90,6 @@ else
 fi
 
 # ============================================
-# Step 7: Create Ingress (Optional - if Ingress exists)
-# ============================================
-if kubectl get ingress -n ingress-nginx &>/dev/null; then
-    log_step "Creating Ingress for Argo CD..."
-    cat <<EOF | kubectl apply -f -
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: argocd
-  namespace: argocd
-  annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "false"
-    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
-spec:
-  ingressClassName: nginx
-  rules:
-  - host: argocd.local
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: argocd-server
-            port:
-              number: 80
-EOF
-    log_info "✅ Ingress created for argocd.local"
-fi
-
-# ============================================
 # Summary
 # ============================================
 echo ""
