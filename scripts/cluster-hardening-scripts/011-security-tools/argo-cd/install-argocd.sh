@@ -160,4 +160,10 @@ sleep 20
 
 echo "📝 # 5. Check if it's working:"
 kubectl get pods -n argocd
-
+ 
+echo "📝 # 6. # Configure Argo CD CLI:"
+NODE_PORT=$(kubectl get svc -n argocd argocd-server -o jsonpath='{.spec.ports[?(@.name=="http")].nodePort}') && \
+MASTER_IP=$(hostname -I | awk '{print $1}') && \
+PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d) && \
+argocd login $MASTER_IP:$NODE_PORT --username admin --password $PASSWORD --insecure && \
+argocd app list
