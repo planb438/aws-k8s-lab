@@ -152,7 +152,8 @@ echo "📝 # 2. Wait for CoreDNS to be ready:"
 kubectl wait --for=condition=ready pod -l k8s-app=kube-dns -n kube-system --timeout=60s
 
 echo "📝 # 3. Restart Argo CD repo-server:"
-kubectl delete pods -n argocd -l app.kubernetes.io/name=argocd-repo-server
+kubectl delete pods -n argocd --all
+sudo systemctl restart kubelet
 
 echo "📝 # 4. Wait for restart:"
 sleep 20
