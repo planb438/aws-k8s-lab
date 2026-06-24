@@ -1,113 +1,137 @@
-Metrics Server Installation Script
-Save as install-metrics-server.sh:
+# ✅ Metrics Server GitOps
+#### GitOps-managed application via Argo CD.
 
-bash
-#!/bin/bash
-# Install Metrics Server for Kubernetes
-# Run on MASTER node after cluster is built
-# Required for: kubectl top, HPA, and autoscaling
+#### 📁 Step 1: Create Metrics Server Application in Your Repo
+#### bash
+    cd ~/argocd-applications-homelab
+    mkdir -p apps/metrics-server
 
-set -e
+cat > apps/metrics-server/00-application.yaml << 'EOF'
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kube-system
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: metrics-server
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://kubernetes-sigs.github.io/metrics-server
+    targetRevision: "3.12.1"
+    chart: metrics-server
+    helm:
+      values: |
+        args:
+          - --kubelet-insecure-tls
+          - --kubelet-preferred-address-types=InternalIP
+        nodeSelector:
+          kubernetes.io/os: linux
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+EOF
+#### 📁 Step 2: Fix the Repo URL
+#### The correct repo URL for Metrics Server Helm chart is:
 
-# Colors
-#### RED='\033[0;31m'
-#### GREEN='\033[0;32m'
-#### YELLOW='\033[1;33m'
-#### BLUE='\033[0;34m'
-#### NC='\033[0m'
+#### bash
+# CORRECT repo URL
+    repoURL: https://kubernetes-sigs.github.io/metrics-server
 
-#### log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
-#### log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
-#### log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
-#### log_step() { echo -e "${BLUE}[STEP]${NC} $1"; }
+#### 📁 Step 3: Commit and Deploy
+#### bash
+# Add to Git
+    git add apps/metrics-server/
+    git commit -m "Add Metrics Server via Argo CD"
+    git push
 
-# ============================================
-# Step 1: Install Metrics Server
-# ============================================
-#### log_step "Installing Metrics Server..."
+# Deploy to cluster
+    kubectl apply -f apps/metrics-server/00-application.yaml
 
-    kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+# Sync with Argo CD
+    argocd app sync metrics-server --force
 
-#### log_info "✅ Metrics Server manifests applied"
-
-# ============================================
-# Step 2: Wait for deployment
-# ============================================
-#### log_step "Waiting for Metrics Server deployment..."
-
-    sleep 10
-    kubectl wait --for=condition=available deployment/metrics-server -n kube-system --timeout=60s 2>/dev/null || {
-       log_warn "Deployment not ready yet, checking status..."
-       kubectl get pods -n kube-system | grep metrics-server
-    }
-
-# ============================================
-# Step 3: Patch for local development (insecure TLS)
-# ============================================
-log_step "Patching Metrics Server for local development..."
-
-# Check if patch is already applied
-    if kubectl get deployment metrics-server -n kube-system -o yaml | grep -q "kubelet-insecure-tls"; then
-        log_info "✅ Metrics Server already patched"
-    else
-        log_info "Adding --kubelet-insecure-tls and --kubelet-preferred-address-types=InternalIP"
-    
-    kubectl patch deployment metrics-server -n kube-system --type='json' -p='[
-        {"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--kubelet-insecure-tls"},
-        {"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--kubelet-preferred-address-types=InternalIP"}
-    ]' 2>/dev/null || {
-        log_warn "Patch failed, trying edit method..."
-        kubectl edit deployment metrics-server -n kube-system
-    }
-    
-    log_info "✅ Metrics Server patched"
-fi
-
-# ============================================
-# Step 4: Wait for restart
-# ============================================
-log_step "Waiting for Metrics Server to restart..."
-
-sleep 15
-kubectl rollout status deployment/metrics-server -n kube-system --timeout=60s
-
-# ============================================
-# Step 5: Verify installation
-# ============================================
-#### log_step "Verifying Metrics Server..."
-
-#### echo ""
-#### echo "========================================="
-#### echo "🔍 VERIFICATION RESULTS"
-#### echo "========================================="
-
-# Check deployment
-#### echo ""
-#### echo "📊 Deployment status:"
+# Verify
+    kubectl get pods -n kube-system | grep metrics-server
     kubectl get deployment metrics-server -n kube-system
+    kubectl top nodes
+#### 📁 Step 4: Remove Manual Helm Installation
+#### bash
+# Uninstall the manual Helm release
+    helm uninstall metrics-server -n default 2>/dev/null
 
-# Check pods
-#### echo ""
-#### echo "📊 Pods:"
+# Argo CD will now manage it in kube-system
+    argocd app sync metrics-server --force
+
+# Verify
+    kubectl get pods -n kube-system | grep metrics-server
+    kubectl top nodes
+#### 📁 Updated Working Application
+#### Here's the complete working file:
+
+yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kube-system
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: metrics-server
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://kubernetes-sigs.github.io/metrics-server
+    targetRevision: "3.12.1"
+    chart: metrics-server
+    helm:
+      values: |
+        args:
+          - --kubelet-insecure-tls
+          - --kubelet-preferred-address-types=InternalIP
+        nodeSelector:
+          kubernetes.io/os: linux
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+📁 Verify Metrics Server is Working
+bash
+# Check pod status
     kubectl get pods -n kube-system | grep metrics-server
 
-# Check API service
-#### echo ""
-#### echo "📊 API Service:"
-    kubectl get apiservices | grep metrics || echo "  Waiting for API service to register..."
+# Check deployment
+    kubectl get deployment metrics-server -n kube-system
 
-# Test kubectl top
-#### echo ""
-#### echo "📊 Testing kubectl top nodes (may take 30-60 seconds first time):"
-    sleep 5
+# Test metrics
+    kubectl top nodes
+    kubectl top pods -A
 
-    if kubectl top nodes &>/dev/null; then
-        echo "✅ kubectl top nodes: WORKING"
-        kubectl top nodes
-    else
-        echo "⚠️ kubectl top nodes: Not ready yet (may need more time)"
-        echo "   Run 'kubectl top nodes' manually in 1-2 minutes"
-    fi
+# Check Argo CD app status
+    argocd app get metrics-server
+
 
 # ============================================
 # Summary
