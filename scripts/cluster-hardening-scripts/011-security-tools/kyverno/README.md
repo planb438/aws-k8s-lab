@@ -147,79 +147,79 @@
     EOF
 #### Create 04-require-readonly-rootfs.yaml:
 
-bash
-cat > 04-require-readonly-rootfs.yaml << 'EOF'
-apiVersion: kyverno.io/v1
-kind: ClusterPolicy
-metadata:
-  name: require-readonly-rootfs
-  annotations:
-    policies.kyverno.io/title: Require Read-Only Root Filesystem
-    policies.kyverno.io/severity: medium
-spec:
-  validationFailureAction: Enforce
-  background: true
-  rules:
-  - name: check-rootfs
-    match:
-      resources:
-        kinds:
-        - Pod
-    validate:
-      message: "Containers must have read-only root filesystem."
-      pattern:
-        spec:
-          containers:
-          - securityContext:
-              readOnlyRootFilesystem: true
-EOF
+#### bash
+    cat > 04-require-readonly-rootfs.yaml << 'EOF'
+    apiVersion: kyverno.io/v1
+    kind: ClusterPolicy
+    metadata:
+      name: require-readonly-rootfs
+      annotations:
+        policies.kyverno.io/title: Require Read-Only Root Filesystem
+        policies.kyverno.io/severity: medium
+    spec:
+      validationFailureAction: Enforce
+      background: true
+      rules:
+      - name: check-rootfs
+        match:
+          resources:
+            kinds:
+            - Pod
+        validate:
+          message: "Containers must have read-only root filesystem."
+          pattern:
+            spec:
+              containers:
+              - securityContext:
+                  readOnlyRootFilesystem: true
+    EOF
 #### 1.3 Create Test Pods (Optional)
 #### Create 05-test-pods.yaml:
 
-bash
-cat > 05-test-pods.yaml << 'EOF'
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: policy-test
-  labels:
-    owner: "admin"
----
-# This should be BLOCKED (privileged: true)
-apiVersion: v1
-kind: Pod
-metadata:
-  name: naughty
-  namespace: policy-test
-spec:
-  containers:
-  - name: cks
-    image: busybox:1.36
-    command: ["sh", "-c", "sleep 3600"]
-    securityContext:
-      privileged: true
----
-# This should be ALLOWED
-apiVersion: v1
-kind: Pod
-metadata:
-  name: good
-  namespace: policy-test
-spec:
-  containers:
-  - name: cks
-    image: busybox:1.36
-    command: ["sh", "-c", "sleep 3600"]
-    securityContext:
-      privileged: false
-      readOnlyRootFilesystem: true
-EOF
+#### bash
+    cat > 05-test-pods.yaml << 'EOF'
+    apiVersion: v1
+    kind: Namespace
+    metadata:
+      name: policy-test
+      labels:
+        owner: "admin"
+    ---
+    # This should be BLOCKED (privileged: true)
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: naughty
+      namespace: policy-test
+    spec:
+      containers:
+      - name: cks
+        image: busybox:1.36
+        command: ["sh", "-c", "sleep 3600"]
+        securityContext:
+          privileged: true
+    ---
+    # This should be ALLOWED
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: good
+      namespace: policy-test
+    spec:
+      containers:
+      - name: cks
+        image: busybox:1.36
+        command: ["sh", "-c", "sleep 3600"]
+        securityContext:
+          privileged: false
+          readOnlyRootFilesystem: true
+    EOF
 #### 📂 Step 2: Commit and Push
 bash
 cd /tmp/Argo-CD
 
 # Check directory structure
-tree apps/kyverno/
+#### tree apps/kyverno/
 
 # Should show:
     apps/kyverno/
@@ -267,50 +267,50 @@ bash
 🔍 Step 5: Test Kyverno Policies
 bash
 # Test: Create a privileged pod (should be blocked)
-cat <<EOF | kubectl apply -f -
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-privileged
-spec:
-  containers:
-  - name: cks
-    image: busybox:1.36
-    command: ["sh", "-c", "sleep 3600"]
-    securityContext:
-      privileged: true
-EOF
+    cat <<EOF | kubectl apply -f -
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: test-privileged
+    spec:
+      containers:
+      - name: cks
+        image: busybox:1.36
+        command: ["sh", "-c", "sleep 3600"]
+        securityContext:
+          privileged: true
+    EOF
 
 # Expected output: Error from server: admission webhook "validate.kyverno.svc" denied the request
 
 # Test: Create a pod with latest tag (should be blocked)
-cat <<EOF | kubectl apply -f -
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-latest
-spec:
-  containers:
-  - name: cks
-    image: busybox:latest
-    command: ["sh", "-c", "sleep 3600"]
-EOF
+    cat <<EOF | kubectl apply -f -
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: test-latest
+    spec:
+      containers:
+      - name: cks
+        image: busybox:latest
+        command: ["sh", "-c", "sleep 3600"]
+    EOF
 
 # Test: Create a valid pod (should be allowed)
-cat <<EOF | kubectl apply -f -
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-good
-spec:
-  containers:
-  - name: cks
-    image: busybox:1.36
-    command: ["sh", "-c", "sleep 3600"]
-    securityContext:
-      privileged: false
-      readOnlyRootFilesystem: true
-EOF
+    cat <<EOF | kubectl apply -f -
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: test-good
+    spec:
+      containers:
+      - name: cks
+        image: busybox:1.36
+        command: ["sh", "-c", "sleep 3600"]
+        securityContext:
+          privileged: false
+          readOnlyRootFilesystem: true
+    EOF
 🧹 Step 6: Clean Up Test Resources
 bash
 # Delete test namespace
@@ -350,7 +350,7 @@ bash
 bash
 # Deploy Kyverno
     kubectl apply -f apps/kyverno/00-kyverno-helm.yaml
-argocd app sync kyverno --force
+    argocd app sync kyverno --force
 
 # Check Kyverno status
     kubectl get pods -n kyverno
