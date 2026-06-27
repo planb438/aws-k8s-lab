@@ -314,4 +314,26 @@ ps aux | grep kube-apiserver | grep -E '(audit|encryption)'
 ####  
 ####  Built with ☁️ by Adari Bain | LinkedIn | YouTube
 
+---
+
+#### 🤝 Contributing & Contact
+---
+#### This portfolio is actively maintained. Feel free to:
+
+#### Fork for your own CKS preparation
+
+#### Submit issues for lab improvements
+
+Connect for security consulting opportunities
+
+LinkedIn: https://www.linkedin.com/in/adari-bain-298924152/
+
+#### 📄 License
+---
+#### Educational use - please attribute if reused in training materials.
+
+#### Updated: June 2026 | Maintainer: Adari Bain | Certifications: CKS, CKA, AWS SA
+
+---
+
 
