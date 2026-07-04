@@ -1,0 +1,51 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: etcd-backup
+  namespace: kube-system
+spec:
+  schedule: "0 2 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          hostNetwork: true
+          nodeSelector:
+            node-role.kubernetes.io/control-plane: ""
+          tolerations:
+          - key: node-role.kubernetes.io/control-plane
+            operator: Exists
+            effect: NoSchedule
+          restartPolicy: OnFailure
+          containers:
+          - name: etcd-backup
+            image: bitnami/kubectl:latest
+            command:
+            - /bin/bash
+            - -c
+            - |
+              BACKUP_DIR=/backup/etcd
+              mkdir -p $BACKUP_DIR
+              SNAPSHOT="$BACKUP_DIR/etcd-snapshot-$(date +%Y%m%d_%H%M%S).db"
+              ETCDCTL_API=3 etcdctl snapshot save $SNAPSHOT \
+                --cacert=/etc/kubernetes/pki/etcd/ca.crt \
+                --cert=/etc/kubernetes/pki/etcd/server.crt \
+                --key=/etc/kubernetes/pki/etcd/server.key
+              gzip -f $SNAPSHOT
+              find $BACKUP_DIR -name "*.gz" -mtime +30 -delete
+              echo "✅ etcd backup completed: $SNAPSHOT.gz"
+            volumeMounts:
+            - name: backup
+              mountPath: /backup
+            - name: etcd-certs
+              mountPath: /etc/kubernetes/pki/etcd
+              readOnly: true
+          volumes:
+          - name: backup
+            hostPath:
+              path: /var/backups/etcd
+              type: DirectoryOrCreate
+          - name: etcd-certs
+            hostPath:
+              path: /etc/kubernetes/pki/etcd
+              type: Directory
