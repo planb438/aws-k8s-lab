@@ -1,0 +1,114 @@
+{
+  "kind": "Backup",
+  "apiVersion": "velero.io/v1",
+  "metadata": {
+    "name": "full-cluster-20260706",
+    "namespace": "velero",
+    "uid": "490a9568-9618-439d-8b27-d72904904fdd",
+    "resourceVersion": "358408",
+    "generation": 7,
+    "creationTimestamp": "2026-07-06T03:58:01Z",
+    "labels": {
+      "velero.io/storage-location": "default"
+    },
+    "annotations": {
+      "velero.io/resource-timeout": "10m0s",
+      "velero.io/source-cluster-k8s-gitversion": "v1.31.1",
+      "velero.io/source-cluster-k8s-major-version": "1",
+      "velero.io/source-cluster-k8s-minor-version": "31"
+    },
+    "managedFields": [
+      {
+        "manager": "velero",
+        "operation": "Update",
+        "apiVersion": "velero.io/v1",
+        "time": "2026-07-06T03:58:01Z",
+        "fieldsType": "FieldsV1",
+        "fieldsV1": {
+          "f:spec": {
+            ".": {},
+            "f:excludedNamespaces": {},
+            "f:hooks": {},
+            "f:includedNamespaces": {},
+            "f:metadata": {},
+            "f:ttl": {}
+          },
+          "f:status": {}
+        }
+      },
+      {
+        "manager": "velero-server",
+        "operation": "Update",
+        "apiVersion": "velero.io/v1",
+        "time": "2026-07-06T03:58:10Z",
+        "fieldsType": "FieldsV1",
+        "fieldsV1": {
+          "f:metadata": {
+            "f:annotations": {
+              ".": {},
+              "f:velero.io/resource-timeout": {},
+              "f:velero.io/source-cluster-k8s-gitversion": {},
+              "f:velero.io/source-cluster-k8s-major-version": {},
+              "f:velero.io/source-cluster-k8s-minor-version": {}
+            },
+            "f:labels": {
+              ".": {},
+              "f:velero.io/storage-location": {}
+            }
+          },
+          "f:spec": {
+            "f:csiSnapshotTimeout": {},
+            "f:defaultVolumesToFsBackup": {},
+            "f:itemOperationTimeout": {},
+            "f:snapshotMoveData": {},
+            "f:storageLocation": {}
+          },
+          "f:status": {
+            "f:expiration": {},
+            "f:formatVersion": {},
+            "f:hookStatus": {},
+            "f:phase": {},
+            "f:progress": {
+              ".": {},
+              "f:itemsBackedUp": {},
+              "f:totalItems": {}
+            },
+            "f:startTimestamp": {},
+            "f:version": {}
+          }
+        }
+      }
+    ]
+  },
+  "spec": {
+    "metadata": {},
+    "includedNamespaces": [
+      "*"
+    ],
+    "excludedNamespaces": [
+      "velero",
+      "argocd",
+      "kube-system"
+    ],
+    "ttl": "168h0m0s",
+    "hooks": {},
+    "storageLocation": "default",
+    "defaultVolumesToFsBackup": false,
+    "csiSnapshotTimeout": "10m0s",
+    "itemOperationTimeout": "4h0m0s",
+    "snapshotMoveData": false
+  },
+  "status": {
+    "version": 1,
+    "formatVersion": "1.1.0",
+    "expiration": "2026-07-13T03:58:01Z",
+    "phase": "Completed",
+    "startTimestamp": "2026-07-06T03:58:01Z",
+    "completionTimestamp": "2026-07-06T03:58:10Z",
+    "progress": {
+      "totalItems": 350,
+      "itemsBackedUp": 350
+    },
+    "hookStatus": {}
+  }
+}
