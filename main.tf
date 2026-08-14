@@ -1,6 +1,6 @@
 terraform {
   backend "s3" {
-    bucket = "planb-backup-bucket"
+    bucket = "242matters-backup-bucket"
     key    = "k8s-lab/terraform.tfstate"
     region = "us-east-1"
   }
@@ -12,7 +12,7 @@ terraform {
 
 # Data source to check if state exists in S3 (updated from deprecated version)
 data "aws_s3_object" "terraform_state" {
-  bucket = "planb-backup-bucket"
+  bucket = "242matters-backup-bucket"
   key    = "k8s-lab/terraform.tfstate"
 }
 
